@@ -1,26 +1,19 @@
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, getDocs, onSnapshot, serverTimestamp, orderBy, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, getDocs, onSnapshot, serverTimestamp, orderBy, updateDoc, deleteDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ===================================================================================
-// PASTE YOUR FIREBASE CONFIG OBJECT HERE
-// ===================================================================================
 const firebaseConfig = {
-    apiKey: "AIzaSyDHBT5FHkoGyoZ2oEAUyW6cuREjAJjc5Wc",
-    authDomain: "nexy-fd6b8.firebaseapp.com",
-    projectId: "nexy-fd6b8",
-    storageBucket: "nexy-fd6b8.appspot.com",
-    messagingSenderId: "471521428421",
-    appId: "1:471521428421:web:714a77c1d6f61e3dcf41ac"
+  apiKey: "AIzaSyDHBT5FHkoGyoZ2oEAUyW6cuREjAJjc5Wc",
+  authDomain: "nexy-fd6b8.firebaseapp.com",
+  projectId: "nexy-fd6b8",
+  storageBucket: "nexy-fd6b8.appspot.com",
+  messagingSenderId: "471521428421",
+  appId: "1:471521428421:web:714a77c1d6f61e3dcf41ac"
 };
-// ===================================================================================
 
-if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
-    document.getElementById('config-error').style.display = 'flex';
-} else {
-    initializeAppAndRun();
-}
+const DEV_MODE = true;
+
+initializeAppAndRun();
 
 function initializeAppAndRun() {
     const app = initializeApp(firebaseConfig);
@@ -28,21 +21,14 @@ function initializeAppAndRun() {
     const db = getFirestore(app);
     console.log("Firebase initialized successfully!");
 
-    const mockChats = [
-        { chatId: 'chat1', userName: 'Alice', lastMessage: 'See you tomorrow!', profilePicUrl: '' },
-        { chatId: 'chat2', userName: 'Bob', lastMessage: 'Sounds good!', profilePicUrl: '' },
-        { chatId: 'chat3', userName: 'Charlie', lastMessage: 'Haha, classic.', profilePicUrl: '' },
-        { chatId: 'chat4', userName: 'Diana', lastMessage: 'Can you send me the file?', profilePicUrl: '' },
-        { chatId: 'chat5', userName: 'Ethan', lastMessage: 'On my way.', profilePicUrl: '' },
-        { chatId: 'chat6', userName: 'Fiona', lastMessage: 'Happy Birthday! 🎉', profilePicUrl: '' },
-        { chatId: 'chat7', userName: 'George', lastMessage: 'Let me check.', profilePicUrl: '' },
-        { chatId: 'chat8', userName: 'Hannah', lastMessage: 'You got it!', profilePicUrl: '' },
-    ];
+    if (DEV_MODE) {
+        window.auth = auth;
+        window.db = db;
+    }
 
     const loginBtn = document.getElementById('login-btn');
     const authContainer = document.getElementById('auth-container');
     const chatUI = document.getElementById('chat-ui');
-    const chatCanvas = document.getElementById('chat-canvas');
     const showSignupBtn = document.getElementById('show-signup-btn');
     const signupOverlay = document.getElementById('signup-overlay');
     const closeSignupBtn = document.getElementById('close-signup-btn');
@@ -54,8 +40,10 @@ function initializeAppAndRun() {
     const signupEmailInput = document.getElementById('signup-email');
     const signupPasswordInput = document.getElementById('signup-password');
     const logoutBtn = document.getElementById('logout-btn');
-    const searchBtn = document.getElementById('search-btn');
+    const searchInput = document.getElementById('search-input');
     const requestsBtn = document.getElementById('requests-btn');
+    const searchResults = document.getElementById('search-results');
+    const requestsPanel = document.getElementById('requests-panel');
 
     loginBtn.addEventListener('click', () => {
         const email = emailInput.value;
@@ -65,8 +53,7 @@ function initializeAppAndRun() {
             console.log('Admin login successful');
             authContainer.classList.add('hidden');
             chatUI.classList.add('visible');
-            chatCanvas.style.display = 'block';
-            initChatSphere();
+            initChatList();
             return;
         }
 
@@ -104,7 +91,9 @@ function initializeAppAndRun() {
                 name: name,
                 handle: handle.startsWith('@') ? handle : '@' + handle,
                 email: email,
-                createdAt: serverTimestamp()
+                createdAt: serverTimestamp(),
+                contacts: [],
+                status: 'online'
             });
             
             console.log("User created and profile saved!");
@@ -117,151 +106,317 @@ function initializeAppAndRun() {
     });
 
     logoutBtn.addEventListener('click', () => {
+        const user = auth.currentUser;
+        if (user) {
+            setDoc(doc(db, "users", user.uid), { status: 'offline' }, { merge: true });
+        }
         signOut(auth).catch((error) => console.error("Sign out error:", error));
     });
 
-    searchBtn.addEventListener('click', () => {
-        console.log('Search button clicked');
-        alert('Search functionality not implemented yet.');
+    searchInput.addEventListener('input', (e) => searchUsers(e.target.value));
+
+    async function searchUsers(queryText) {
+        searchResults.innerHTML = '';
+        if (!queryText) {
+            return;
+        }
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('handle', '>=', queryText), where('handle', '<=', queryText + '\uf8ff'));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            searchResults.innerHTML = '<div class="search-result-item">No users found.</div>';
+            return;
+        }
+        querySnapshot.forEach((doc) => {
+            const user = doc.data();
+            const userResultDiv = document.createElement('div');
+            userResultDiv.className = 'search-result-item';
+            userResultDiv.innerHTML = `
+                <img src="${user.profilePicUrl || 'https://via.placeholder.com/40'}" alt="${user.name}">
+                <div class="search-result-info">
+                    <h4>${user.name}</h4>
+                    <p>${user.handle}</p>
+                </div>
+                <button class="add-friend-btn" data-uid="${user.uid}">Add Friend</button>
+            `;
+            searchResults.appendChild(userResultDiv);
+        });
+    }
+
+    searchResults.addEventListener('click', (e) => {
+        if (e.target.classList.contains('add-friend-btn')) {
+            const uid = e.target.getAttribute('data-uid');
+            sendFriendRequest(uid, e.target);
+        }
     });
 
+    async function sendFriendRequest(recipientId, button) {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            alert('You must be logged in to send friend requests.');
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, 'friend_requests'), {
+                fromId: currentUser.uid,
+                toId: recipientId,
+                status: 'pending',
+                createdAt: serverTimestamp()
+            });
+            button.textContent = 'Request Sent';
+            button.disabled = true;
+        } catch (error) {
+            console.error("Error sending friend request:", error);
+            alert('Error sending friend request.');
+        }
+    }
+
     requestsBtn.addEventListener('click', () => {
-        console.log('Requests button clicked');
-        alert('Requests functionality not implemented yet.');
+        requestsPanel.classList.toggle('visible');
     });
+
+    async function listenForFriendRequests() {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        const q = query(collection(db, "friend_requests"), where("toId", "==", currentUser.uid), where("status", "==", "pending"));
+        onSnapshot(q, async (snapshot) => {
+            requestsPanel.innerHTML = '<h2>Friend Requests</h2>';
+            if (snapshot.empty) {
+                requestsPanel.innerHTML += '<p>No new requests.</p>';
+                return;
+            }
+            for (const requestDoc of snapshot.docs) {
+                const request = requestDoc.data();
+                const fromUserDoc = await getDoc(doc(db, "users", request.fromId));
+                if (fromUserDoc.exists()) {
+                    const fromUser = fromUserDoc.data();
+                    const requestItem = document.createElement('div');
+                    requestItem.className = 'request-item';
+                    requestItem.innerHTML = `
+                        <div class="request-info">
+                            <h4>${fromUser.name}</h4>
+                            <p>${fromUser.handle}</p>
+                        </div>
+                        <div class="request-actions">
+                            <button class="accept-btn" data-id="${requestDoc.id}">Accept</button>
+                            <button class="decline-btn" data-id="${requestDoc.id}">Decline</button>
+                        </div>
+                    `;
+                    requestsPanel.appendChild(requestItem);
+                }
+            }
+        });
+    }
+
+    requestsPanel.addEventListener('click', (e) => {
+        const target = e.target;
+        const requestId = target.getAttribute('data-id');
+        if (target.classList.contains('accept-btn')) {
+            acceptFriendRequest(requestId);
+        } else if (target.classList.contains('decline-btn')) {
+            declineFriendRequest(requestId);
+        }
+    });
+
+    async function acceptFriendRequest(requestId) {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        const requestDocRef = doc(db, "friend_requests", requestId);
+        const requestDoc = await getDoc(requestDocRef);
+
+        if (requestDoc.exists()) {
+            const fromId = requestDoc.data().fromId;
+            const currentUserDocRef = doc(db, "users", currentUser.uid);
+            const fromUserDocRef = doc(db, "users", fromId);
+
+            await updateDoc(requestDocRef, { status: "accepted" });
+            await updateDoc(currentUserDocRef, { contacts: arrayUnion(fromId) });
+            await updateDoc(fromUserDocRef, { contacts: arrayUnion(currentUser.uid) });
+        }
+    }
+
+    async function declineFriendRequest(requestId) {
+        const requestDocRef = doc(db, "friend_requests", requestId);
+        await updateDoc(requestDocRef, { status: "declined" });
+    }
 
     showSignupBtn.addEventListener('click', () => signupOverlay.classList.add('visible'));
     closeSignupBtn.addEventListener('click', () => signupOverlay.classList.remove('visible'));
     
-    onAuthStateChanged(auth, user => {
+    onAuthStateChanged(auth, async user => {
         if (user) {
             console.log("User is authenticated:", user.uid);
+            const userDocRef = doc(db, "users", user.uid);
+            await setDoc(userDocRef, { status: 'online' }, { merge: true });
+
             authContainer.classList.add('hidden');
             chatUI.classList.add('visible');
-            chatCanvas.style.display = 'block';
-            initChatSphere();
+            initChatList();
+            listenForFriendRequests();
+
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                const userProfileDiv = document.getElementById('user-profile');
+                userProfileDiv.innerHTML = `
+                    <div class="user-profile-name">${userData.name}</div>
+                    <div class="user-profile-handle">${userData.handle}</div>
+                `;
+            }
+
         } else {
             console.log("User is not authenticated.");
             authContainer.classList.remove('hidden');
             chatUI.classList.remove('visible');
-            chatCanvas.style.display = 'none';
+            const userProfileDiv = document.getElementById('user-profile');
+            userProfileDiv.innerHTML = '';
         }
     });
 
-    function initChatSphere() {
-        let scene, camera, renderer, labelRenderer, controls;
-        const chatHeads = [];
-
-        // Scene setup
-        scene = new THREE.Scene();
-
-        // Camera setup
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.z = 15;
-
-        // WebGL Renderer for 3D objects
-        renderer = new THREE.WebGLRenderer({ canvas: chatCanvas, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setClearColor(0x000000, 0);
-
-        // CSS2D Renderer for HTML labels
-        labelRenderer = new THREE.CSS2DRenderer();
-        labelRenderer.setSize(window.innerWidth, window.innerHeight);
-        labelRenderer.domElement.style.position = 'absolute';
-        labelRenderer.domElement.style.top = '0px';
-        document.querySelector('.chat-ui-container').appendChild(labelRenderer.domElement);
-
-        // Controls
-        controls = new THREE.OrbitControls(camera, labelRenderer.domElement);
-        controls.enableZoom = false;
-        controls.enablePan = false;
-
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        directionalLight.position.set(5, 10, 7.5);
-        scene.add(directionalLight);
-
-        // Create Chat Heads
-        const geometry = new THREE.IcosahedronGeometry(5, 1); 
-        const positions = geometry.attributes.position.array;
-
-        for (let i = 0; i < mockChats.length; i++) {
-            const chat = mockChats[i];
-            const posIndex = i * 3;
-
-            const chatHeadDiv = document.createElement('div');
-            chatHeadDiv.className = 'chat-head-label';
-            chatHeadDiv.textContent = chat.userName;
-            // Add profile pic later
-            // const img = document.createElement('img');
-            // img.src = chat.profilePicUrl || 'default-avatar.png'; 
-            // chatHeadDiv.appendChild(img);
-
-            const chatHeadLabel = new THREE.CSS2DObject(chatHeadDiv);
-            
-            const x = positions[posIndex];
-            const y = positions[posIndex + 1];
-            const z = positions[posIndex + 2];
-            chatHeadLabel.position.set(x, y, z);
-            
-            scene.add(chatHeadLabel);
-            chatHeads.push({ label: chatHeadLabel, originalPos: new THREE.Vector3(x, y, z) });
-
-            chatHeadDiv.addEventListener('click', () => {
-                console.log('Clicked on chat:', chat.chatId);
-                openChatWindow(chat);
-            });
+    function initChatList() {
+        let chatListContainer = document.querySelector('.chat-list-container');
+        if (!chatListContainer) {
+            chatListContainer = document.createElement('div');
+            chatListContainer.className = 'chat-list-container';
+            document.querySelector('.chat-ui-container').appendChild(chatListContainer);
         }
 
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
 
-            const time = Date.now() * 0.0005;
-
-            chatHeads.forEach((head, index) => {
-                const yOffset = Math.sin(time * 2 + index * 0.5) * 0.1;
-                head.label.position.y = head.originalPos.y + yOffset;
-            });
-
-            controls.update();
-            renderer.render(scene, camera);
-            labelRenderer.render(scene, camera);
-        }
-
-        animate();
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        onSnapshot(doc(db, "users", currentUser.uid), async (userDoc) => {
+            const userData = userDoc.data();
+            chatListContainer.innerHTML = '';
+            if (userData && userData.contacts && userData.contacts.length > 0) {
+                for (const contactId of userData.contacts) {
+                    const contactDoc = await getDoc(doc(db, "users", contactId));
+                    if (contactDoc.exists()) {
+                        const contactData = contactDoc.data();
+                        const chatHead = document.createElement('div');
+                        chatHead.className = 'chat-head';
+                        chatHead.innerHTML = `
+                            <img src="${contactData.profilePicUrl || 'https://via.placeholder.com/50'}" alt="${contactData.name}">
+                            <div class="chat-head-info">
+                                <h4>${contactData.name}</h4>
+                                <p>${contactData.status === 'online' ? '<span class="online-indicator"></span> Online' : 'Offline'}</p>
+                            </div>
+                        `;
+                        chatHead.addEventListener('click', () => {
+                            openChat(contactId);
+                        });
+                        chatListContainer.appendChild(chatHead);
+                    }
+                }
+            } else {
+                chatListContainer.innerHTML = '<p>No contacts yet.</p>';
+            }
         });
     }
 
-    function openChatWindow(chat) {
+    async function openChat(contactId) {
+        const currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        const members = [currentUser.uid, contactId].sort();
+        const chatId = members.join('_');
+        const chatDocRef = doc(db, "chats", chatId);
+        const chatDoc = await getDoc(chatDocRef);
+
+        if (!chatDoc.exists()) {
+            await setDoc(chatDocRef, {
+                members: members,
+                isGroup: false,
+                lastMessage: '',
+                lastUpdated: serverTimestamp()
+            });
+        }
+
+        openChatWindow(chatId, contactId);
+    }
+
+    function openChatWindow(chatId, contactId) {
         const chatWindow = document.getElementById('chat-window');
-        chatWindow.innerHTML = `
-            <div class="chat-header">
-                <img src="${chat.profilePicUrl || 'https://via.placeholder.com/40'}" alt="${chat.userName}">
-                <div class="chat-header-info">
-                    <h3>${chat.userName}</h3>
-                    <p>Online</p> 
-                </div>
-            </div>
-            <div class="chat-messages">
-                <div class="message received"><div class="message-bubble">${chat.lastMessage}</div></div>
-                <div class="message sent"><div class="message-bubble">Hey! How are you?</div></div>
-            </div>
-            <div class="chat-input-area">
-                <input type="text" placeholder="Type a message...">
-                <button>Send</button>
-            </div>
-        `;
+        const chatHeaderInfo = chatWindow.querySelector('.chat-header-info h3');
+        const onlineIndicator = chatWindow.querySelector('.online-indicator');
+        const typingIndicator = chatWindow.querySelector('.typing-indicator');
+        const chatMessages = chatWindow.querySelector('.chat-messages');
+
+        getDoc(doc(db, "users", contactId)).then(userDoc => {
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                chatHeaderInfo.textContent = userData.name;
+                if (userData.status === 'online') {
+                    onlineIndicator.style.display = 'inline-block';
+                } else {
+                    onlineIndicator.style.display = 'none';
+                }
+            }
+        });
+
+        listenForMessages(chatId, chatMessages);
+
+        const messageInput = document.getElementById('message-input');
+        let typingTimeout;
+        messageInput.addEventListener('input', () => {
+            const typingStatusRef = doc(db, 'typing_status', chatId);
+            updateDoc(typingStatusRef, { [auth.currentUser.uid]: true });
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                updateDoc(typingStatusRef, { [auth.currentUser.uid]: false });
+            }, 2000);
+        });
+
+        onSnapshot(doc(db, 'typing_status', chatId), (doc) => {
+            if (doc.exists() && doc.data()[contactId]) {
+                typingIndicator.textContent = 'is typing...';
+            } else {
+                typingIndicator.textContent = '';
+            }
+        });
+
+        const sendBtn = document.getElementById('send-btn');
+        sendBtn.addEventListener('click', () => {
+            sendMessage(chatId, messageInput.value);
+            messageInput.value = '';
+            const typingStatusRef = doc(db, 'typing_status', chatId);
+            updateDoc(typingStatusRef, { [auth.currentUser.uid]: false });
+        });
+
         chatWindow.classList.add('visible');
+    }
+
+    async function sendMessage(chatId, text) {
+        const currentUser = auth.currentUser;
+        if (!currentUser || !text.trim()) return;
+
+        await addDoc(collection(db, "chats", chatId, "messages"), {
+            text: text,
+            senderId: currentUser.uid,
+            createdAt: serverTimestamp()
+        });
+
+        await updateDoc(doc(db, "chats", chatId), {
+            lastMessage: text,
+            lastUpdated: serverTimestamp()
+        });
+    }
+
+    function listenForMessages(chatId, container) {
+        const q = query(collection(db, "chats", chatId, "messages"), orderBy("createdAt"));
+        onSnapshot(q, (snapshot) => {
+            container.innerHTML = '';
+            snapshot.forEach(doc => {
+                const message = doc.data();
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message ' + (message.senderId === auth.currentUser.uid ? 'sent' : 'received');
+                messageDiv.innerHTML = `<div class="message-bubble">${message.text}</div>`;
+                container.appendChild(messageDiv);
+            });
+            container.scrollTop = container.scrollHeight;
+        });
     }
 
     console.log("Initializing particle background...");
@@ -299,15 +454,17 @@ This is the roadmap for building the nexy messenger application.
     [x] `onAuthStateChanged()`
 
 2.  User & Social Features
-    [ ] `searchUsers(handleQuery)`
-    [ ] `sendFriendRequest(recipientId)`
-    [ ] `listenForFriendRequests()`
-    [ ] `acceptFriendRequest(requestId)`
+    [x] `searchUsers(handleQuery)`
+    [x] `sendFriendRequest(recipientId)`
+    [x] `listenForFriendRequests()`
+    [x] `acceptFriendRequest(requestId)`
+    [x] `declineFriendRequest(requestId)`
 
 3.  Real-Time Chat
-    [ ] `listenForUserChats()`
-    [ ] `openChat(chatId)`
-    [ ] `sendMessage(chatId, messageText)`
-    [ ] `editMessage(chatId, messageId, newText)`
-    [ ] `deleteMessage(chatId, messageId)`
+    [x] `listenForUserChats()`
+    [x] `openChat(chatId)`
+    [x] `sendMessage(chatId, messageText)`
+    [x] `listenForMessages(chatId, container)`
+    [x] `editMessage(chatId, messageId, newText)`
+    [x] `deleteMessage(chatId, messageId)`
 */
