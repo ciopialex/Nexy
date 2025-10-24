@@ -1,0 +1,87 @@
+# Nexy Application Blueprint (v3 - MVP Complete)
+
+## I. Project Vision
+To build a sleek, modern, single-page chat application named Nexy. The primary focus is on a fluid, intuitive, and visually appealing user experience, drawing inspiration from leading chat apps. The UI will be dark-themed with a "matrix-style" accent, featuring smooth animations for all interactions. The application will function as a single page, using overlays for profiles, chat requests, and conversations.
+
+## II. Core Technologies
+- **Backend:** Node.js, Express.js
+- **Database:** MySQL
+- **Real-time Communication:** Socket.IO
+- **Frontend:** HTML, CSS, Vanilla JavaScript
+- **Animation:** Anime.js
+
+---
+
+## III. MVP (Minimum Viable Product) Development Plan
+
+### Phase 1: Foundations - Signup & UI Polish
+*   **COMPLETED! - Task:** Backend - Test Registration
+*   **COMPLETED! - Task:** Frontend - Activate Signup Form
+*   **COMPLETED! - Task:** Frontend - Implement Signup Logic
+*   **COMPLETED! - Task:** Project Setup - Add Animation Library
+*   **COMPLETED! - Task:** UI/UX - Define Visual Style
+*   **COMPLETED! - Task:** UI/UX - Create Reusable Animation
+
+### Phase 2: User Discovery - Search & Profiles
+*   **COMPLETED! - Task:** Backend - Optimize Search
+*   **COMPLETED! - Task:** Frontend - Implement Live Search
+*   **COMPLETED! - Task:** Frontend - Build Profile Overlay
+
+### Phase 3: Connecting Users - Chat Request System
+*   **COMPLETED! - Task:** Database - Create Table
+*   **COMPLETED! - Task:** Backend - Create Request Routes
+*   **COMPLETED! - Task:** Backend - Implement "Accept" Logic
+*   **COMPLETED! - Task:** Frontend - Implement "Add" Button
+*   **COMPLETED! - Task:** Frontend - Build "Requests" Panel
+
+### Phase 4: The Conversation - Core Chat
+*   **COMPLETED! - Task:** Backend - Create Chat History Route
+*   **COMPLETED! - Task:** Frontend - Implement "Start Chat" Button
+*   **COMPLETED! - Task:** Frontend - Build Chat Overlay
+*   **COMPLETED! - Task:** Frontend - Implement Image Upload
+*   **COMPLETED! - Task:** Frontend - Refine Real-time Handler
+
+### Phase 5: The Hub - Chat History
+*   **COMPLETED! - Task:** Backend - Create Chat List Route
+*   **COMPLETED! - Task:** Frontend - Build History View
+*   **COMPLETED! - Task:** Frontend - Link to Chats
+*   **COMPLETED! - Task:** Frontend - Implement Scroll Effect
+
+---
+
+## IV. Post-MVP Roadmap (TO DO!)
+
+### Priority 1: User Profile Editing
+*   **Task:** Allow users to upload their own profile picture.
+*   **How:**
+    1.  Make the user's own profile element in the top bar clickable.
+    2.  On click, open an "Edit Profile" overlay that shows their current picture.
+    3.  Clicking the picture will trigger the hidden file input.
+    4.  The upload will use the existing `/api/upload` endpoint with `type: 'profile'`.
+    5.  On success, the UI will update instantly with the new profile picture.
+
+### Priority 2: Read Receipts ("Seen" Status)
+*   **Task:** Show when a message has been seen by the recipient.
+*   **How (Backend):**
+    1.  Run a script to `ALTER TABLE Messages` to add a `status` column (e.g., ENUM 'sent', 'delivered', 'seen').
+    2.  Create a new `markMessagesAsRead` event handler on the Socket.IO server. This will update message statuses in the database for a given chat.
+*   **How (Frontend):**
+    1.  When a chat window is opened, emit the `markMessagesAsRead` event to the server.
+    2.  Listen for a `messagesUpdated` event from the server to know when to display the "Seen" status.
+    3.  Append a small "Seen" indicator below the last message in the chat window when appropriate.
+
+### Priority 3: Edit & Delete Messages
+*   **Task:** Allow users to edit and delete their sent messages.
+*   **How (Backend):**
+    1.  Run a script to `ALTER TABLE Messages` to add an `isEdited` (BOOLEAN) flag.
+    2.  Create a `deleteMessage` socket handler that replaces the message content with "This message was deleted."
+    3.  Create an `editMessage` socket handler that updates the message content and sets the `isEdited` flag.
+*   **How (Frontend):**
+    1.  Implement a right-click (desktop) or long-press (mobile) context menu on sent messages with "Edit" and "Delete" options.
+    2.  The "Delete" option will emit the `deleteMessage` event.
+    3.  The "Edit" option will turn the message bubble into an input field; submitting it will emit the `editMessage` event.
+    4.  The UI will update to show the "(edited)" tag or the "message deleted" placeholder.
+
+### Priority 4: UI/UX Polish (2.5D/3D Experience)
+*   **Task:** Implement the "cool scrolling effect" for the Chat History list.
+*   **How:** In `app.js`, add a `scroll` event listener to the `.chat-history-list`. Use `anime.js` to apply a `transform: perspective(...) rotateY(...)` to the `.chat-history-item` elements based on their scroll position, creating a "cover flow" like effect.

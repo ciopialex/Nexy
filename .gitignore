@@ -1,7 +1,3 @@
-# Dependencies
-/node_modules
-
-# Firebase config
-# The Firebase config is included in the client-side code.
-# Make sure to secure your database with Firestore security rules.
-# Do not commit any service account keys or other server-side credentials.
+.env
+node_modules/
+public/uploads/
