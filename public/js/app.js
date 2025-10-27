@@ -1,15 +1,17 @@
 import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
 
-const socket = io('http://localhost:3000'); // Adjust if your server is elsewhere
+const socket = io('http://localhost:3000');
 
 let currentUser = null;
+let currentChatId = null;
+let selectedMessageId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Elements ---
+    // Global variables
     const authContainer = document.getElementById('auth-container');
     const chatUI = document.getElementById('chat-ui');
     const loginBtn = document.getElementById('login-btn');
-    const emailInput = document.getElementById('email-input');
+    const loginInput = document.getElementById('login-input');
     const passwordInput = document.getElementById('password-input');
     const logoutBtn = document.getElementById('logout-btn');
     const searchInput = document.getElementById('search-input');
@@ -27,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileModalPic = document.querySelector('.profile-modal-pic');
     const profileModalName = document.querySelector('.profile-modal-name');
     const profileModalHandle = document.querySelector('.profile-modal-handle');
-    const profileAddBtn = document.getElementById('profile-add-btn');
     const requestsOverlay = document.getElementById('requests-overlay');
     const requestsBtn = document.getElementById('requests-btn');
     const closeRequestsBtn = document.getElementById('close-requests-btn');
@@ -38,342 +39,759 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.querySelector('.chat-messages');
     const uploadBtn = document.getElementById('upload-btn');
     const imageUpload = document.getElementById('image-upload');
-    const historyBtn = document.getElementById('history-btn');
-    const chatHistory = document.getElementById('chat-history');
-    const chatHistoryList = document.querySelector('.chat-history-list');
+    const chatsBtn = document.getElementById('chats-btn');
+    const chatHeadsContainer = document.getElementById('chat-heads-container');
     const userProfile = document.getElementById('user-profile');
-    const profileImageUpload = document.getElementById('profile-image-upload');
+    const notificationContainer = document.getElementById('notification-container');
     const messageContextMenu = document.getElementById('message-context-menu');
     const editMessageBtn = document.getElementById('edit-message-btn');
     const deleteMessageBtn = document.getElementById('delete-message-btn');
+    const sendBtn = document.getElementById('send-btn');
+    const messageInput = document.getElementById('message-input');
 
-    let currentChatId = null;
-    let activeMessageId = null;
+        const closeChatHistoryBtn = document.getElementById('close-chat-history-btn');
 
-    // --- Helper Functions ---
+    function setupEventListeners() {
+        loginBtn.addEventListener('click', () => handleLogin());
+        passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
+        logoutBtn.addEventListener('click', handleLogout);
+        showSignupBtn.addEventListener('click', () => signupOverlay.classList.add('visible'));
+        closeSignupBtn.addEventListener('click', () => signupOverlay.classList.remove('visible'));
+        signupBtn.addEventListener('click', handleSignup);
+        chatsBtn.addEventListener('click', () => {
+    document.getElementById('chat-history').classList.add('visible');
+    document.querySelector('.chat-area').classList.add('history-visible');
+});
+        closeChatHistoryBtn.addEventListener('click', () => {
+    document.getElementById('chat-history').classList.remove('visible');
+    document.querySelector('.chat-area').classList.remove('history-visible');
+});
+        requestsBtn.addEventListener('click', () => requestsOverlay.classList.add('visible'));
+        closeRequestsBtn.addEventListener('click', () => requestsOverlay.classList.remove('visible'));
+        userProfile.addEventListener('click', showSelfProfile);
+        closeProfileBtn.addEventListener('click', hideProfile);
+        closeChatBtn.addEventListener('click', closeChatWindow);
+        uploadBtn.addEventListener('click', () => imageUpload.click());
+        imageUpload.addEventListener('change', handleImageUpload);
+        chatMessages.addEventListener('contextmenu', showContextMenu);
+        editMessageBtn.addEventListener('click', handleEditMessage);
+        deleteMessageBtn.addEventListener('click', handleDeleteMessage);
+        sendBtn.addEventListener('click', handleSendMessage);
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleSendMessage();
+            }
+        });
+    }
 
-    async function initializeAppUI(user) {
-        authContainer.classList.add('hidden');
-        chatUI.classList.add('visible');
+    function hideProfile() {
 
-        const userProfileDiv = document.getElementById('user-profile');
-        userProfileDiv.innerHTML = `
-            <img src="${user.profilePictureUrl || 'https://via.placeholder.com/40'}" alt="My Profile" id="top-bar-profile-pic">
-            <div class="user-profile-name">${user.username}</div>
-            <div class="user-profile-handle">${user.email}</div>
-        `;
+            profileOverlay.classList.remove('visible');
 
+        }
+
+    
+
+        function showContextMenu(e) {
+
+            const messageEl = e.target.closest('.message.sent');
+
+            if (!messageEl) return;
+
+    
+
+            e.preventDefault();
+
+    
+
+            selectedMessageId = messageEl.dataset.messageId;
+
+    
+
+            messageContextMenu.style.top = `${e.clientY}px`;
+
+            messageContextMenu.style.left = `${e.clientX}px`;
+
+            messageContextMenu.classList.add('visible');
+
+    
+
+            const clickListener = () => {
+
+                messageContextMenu.classList.remove('visible');
+
+                document.removeEventListener('click', clickListener);
+
+            };
+
+            document.addEventListener('click', clickListener);
+
+                }
+
+            
+
+                function handleDeleteMessage() {
+
+                    if (!selectedMessageId) return;
+
+            
+
+                    socket.emit('deleteMessage', {
+
+            
+
+                                messageId: selectedMessageId,
+
+            
+
+                                chatId: currentChatId,
+
+            
+
+                                userId: currentUser.userId
+
+            
+
+                            });
+
+            
+
+                        }
+
+            
+
+                    
+
+            
+
+                        function handleEditMessage() {
+
+            
+
+                    
+
+            
+
+                                if (!selectedMessageId) return;
+
+            
+
+                    
+
+            
+
+                        
+
+            
+
+                    
+
+            
+
+                                const messageEl = document.querySelector(`[data-message-id="${selectedMessageId}"]`);
+
+            
+
+                    
+
+            
+
+                                if (!messageEl) return;
+
+            
+
+                    
+
+            
+
+                        
+
+            
+
+                    
+
+            
+
+                                const messageBubble = messageEl.querySelector('.message-bubble');
+
+            
+
+                    
+
+            
+
+                                if (!messageBubble) return;
+
+            
+
+                    
+
+            
+
+                        
+
+            
+
+                    
+
+            
+
+                                const currentContent = messageBubble.textContent;
+
+            
+
+                    
+
+            
+
+                                const input = document.createElement('input');
+
+            
+
+                    
+
+            
+
+                                input.type = 'text';
+
+            
+
+                    
+
+            
+
+                                input.value = currentContent;
+
+            
+
+                    
+
+            
+
+                        
+
+            
+
+                    
+
+            
+
+                                messageBubble.innerHTML = '';
+
+            
+
+                    
+
+            
+
+                                messageBubble.appendChild(input);
+
+            
+
+                    
+
+            
+
+                                input.focus();
+
+            
+
+                    
+
+            
+
+                        
+
+            
+
+                    
+
+            
+
+                                input.addEventListener('keydown', (e) => {
+
+            
+
+                    
+
+            
+
+                                    if (e.key === 'Enter') {
+
+            
+
+                    
+
+            
+
+                                        const newContent = input.value;
+
+            
+
+                    
+
+            
+
+                                        socket.emit('editMessage', {
+
+            
+
+                    
+
+            
+
+                                            messageId: selectedMessageId,
+
+            
+
+                    
+
+            
+
+                                            chatId: currentChatId,
+
+            
+
+                    
+
+            
+
+                                            userId: currentUser.userId,
+
+            
+
+                    
+
+            
+
+                                            newContent
+
+            
+
+                    
+
+            
+
+                                        });
+
+            
+
+                    
+
+            
+
+                                        messageBubble.textContent = newContent;
+
+            
+
+                    
+
+            
+
+                                    }
+
+            
+
+                    
+
+            
+
+                                });
+
+            
+
+                    
+
+            
+
+                            }
+
+            
+
+                    
+
+            
+
+                        
+
+            
+
+                    
+
+            
+
+                            function handleSendMessage() {
+
+            
+
+                    
+
+            
+
+                                const content = messageInput.value.trim();
+
+            
+
+                    
+
+            
+
+                                if (content) {
+
+            
+
+                    
+
+            
+
+                                    socket.emit('sendMessage', {
+
+            
+
+                    
+
+            
+
+                                        chatId: currentChatId,
+
+            
+
+                    
+
+            
+
+                                        senderId: currentUser.userId,
+
+            
+
+                    
+
+            
+
+                                        content
+
+            
+
+                    
+
+            
+
+                                    });
+
+            
+
+                    
+
+            
+
+                                    messageInput.value = '';
+
+            
+
+                    
+
+            
+
+                                }
+
+            
+
+                    
+
+            
+
+                            }    async function loadChatHistory() {
         const token = localStorage.getItem('token');
         try {
             const response = await fetch('/api/chats', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!response.ok) throw new Error('Could not fetch chats.');
-            currentUser.chats = await response.json();
+            if (!response.ok) {
+                throw new Error('Failed to fetch chats');
+            }
+            const chats = await response.json();
+            const chatList = document.querySelector('.chat-history-list');
+            chatList.innerHTML = ''; // Clear existing list
+            chats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-history-item';
+                chatItem.dataset.chatId = chat.chatId;
+                chatItem.innerHTML = `
+                    <img src="${chat.otherProfilePic || 'img/default-avatar.png'}" alt="Profile Picture">
+                    <div class="chat-history-info">
+                        <h4>${chat.otherUsername}</h4>
+                        <p>${chat.lastMessage || ''}</p>
+                    </div>
+                `;
+                chatItem.addEventListener('click', () => openChatWindow(chat));
+                chatList.appendChild(chatItem);
+            });
         } catch (error) {
-            console.error('Error fetching chats:', error);
-            currentUser.chats = [];
+            console.error('Error loading chat history:', error);
         }
-
-        socket.connect();
-        socket.emit('setOnline', user.userId);
-        renderChatHistory(currentUser.chats);
     }
 
-    function renderChatHistory(chats) {
-        chatHistoryList.innerHTML = '';
-        if (!chats || chats.length === 0) {
-            chatHistoryList.innerHTML = '<p style="padding: 15px; text-align: center;">No chats yet.</p>';
-            return;
+    function showChatUI() {
+        authContainer.classList.add('hidden');
+        chatUI.classList.add('visible');
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user) {
+            const userProfile = document.getElementById('user-profile');
+            userProfile.innerHTML = `<img src="${user.profilePictureUrl || 'img/default-avatar.png'}" class="mini-profile-pic"><span>Profile</span>`;
         }
-        chats.forEach(chat => {
-            const item = document.createElement('div');
-            item.className = 'chat-history-item';
-            item.dataset.chatId = chat.chatId;
-            item.dataset.otherUsername = chat.otherUsername;
-            item.dataset.otherProfilePic = chat.otherProfilePic || 'https://via.placeholder.com/40';
-            item.innerHTML = `
-                <img src="${chat.otherProfilePic || 'https://via.placeholder.com/40'}" alt="${chat.otherUsername}">
-                <div class="chat-history-info">
-                    <h4>${chat.otherUsername}</h4>
-                    <p>${chat.lastMessage || '&nbsp;'}</p>
-                </div>
-            `;
-            chatHistoryList.appendChild(item);
-        });
+        loadChatHistory();
     }
 
-    async function openChatWindow(chatId, otherUser) {
-        currentChatId = chatId;
-        socket.emit('joinChat', chatId);
-        socket.emit('markMessagesAsRead', { chatId, userId: currentUser.userId });
+    function showAuthUI() {
+        chatUI.classList.remove('visible');
+        authContainer.classList.remove('hidden');
+    }
 
-        chatHeaderName.textContent = otherUser.username;
-        chatMessages.innerHTML = '';
+    function showSelfProfile() {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user) {
+            profileModalPic.src = user.profilePictureUrl || 'img/default-avatar.png';
+            profileModalName.textContent = user.username;
+            profileModalHandle.textContent = user.email;
+            profileOverlay.classList.add('visible');
+        }
+    }
+
+    function hideProfile() {
+        profileOverlay.classList.remove('visible');
+    }
+
+    async function handleImageUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('chatId', currentChatId);
+        formData.append('userId', currentUser.userId);
+        formData.append('type', 'chat');
+
+        const token = localStorage.getItem('token');
+
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Image upload failed');
+            }
+
+            // The server will emit a 'newMessage' event, which will be handled by the socket listener.
+
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            alert('Error uploading image.');
+        }
+    }
+
+
+
+    async function openChatWindow(chat) {
+        socket.emit('joinChat', chat.chatId);
+        currentChatId = chat.chatId;
+        document.querySelector('.chat-area').classList.add('visible');
+        const chatHead = document.querySelector(`.chat-head[data-chat-id="${chat.chatId}"]`);
+        if (chatHead) {
+            const badge = chatHead.querySelector('.notification-badge');
+            if (badge) {
+                badge.remove();
+            }
+        }
+
+        chatHeadsContainer.classList.add('chat-open');
+        chatWindow.classList.add('visible');
+        chatHeaderName.textContent = chat.otherUsername;
 
         const token = localStorage.getItem('token');
         try {
-            const response = await fetch(`/api/chats/${chatId}/messages`, {
+            const response = await fetch(`/api/chats/${chat.chatId}/messages`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!response.ok) throw new Error('Could not fetch messages.');
-            const messages = await response.json();
-            messages.forEach(msg => appendMessage(msg, false));
-            chatWindow.classList.add('visible');
+            if (response.ok) {
+                const messages = await response.json();
+                chatMessages.innerHTML = '';
+                messages.forEach(message => {
+                const messageEl = document.createElement('div');
+                messageEl.className = `message ${message.senderId === currentUser.userId ? 'sent' : 'received'}`;
+                messageEl.dataset.messageId = message.messageId;
+                let content = '';
+                if (message.imageUrl) {
+                    content = `<img src="${message.imageUrl}" class="message-image">`;
+                } else {
+                    content = message.content;
+                }
+                messageEl.innerHTML = `<div class="message-bubble">${content}</div>`;
+                chatMessages.appendChild(messageEl);
+            });
+            } else {
+                console.error('Failed to fetch messages');
+            }
         } catch (error) {
-            console.error('Error opening chat:', error);
-            alert('Could not open chat.');
+            console.error('Error fetching messages:', error);
         }
     }
 
-    function appendMessage(message, isNew = true) {
-        const messageId = message.messageId || `temp-${Date.now()}`;
-        let messageDiv = chatMessages.querySelector(`[data-message-id="${messageId}"]`);
-        
-        const isSent = message.senderId === currentUser.userId;
-
-        if (!messageDiv) {
-            messageDiv = document.createElement('div');
-            messageDiv.dataset.messageId = messageId;
-            chatMessages.appendChild(messageDiv);
-        }
-        
-        messageDiv.className = 'message ' + (isSent ? 'sent' : 'received');
-
-        let contentHtml;
-        if (message.imageUrl) {
-            contentHtml = `<img src="${message.imageUrl}" class="chat-image" alt="Chat Image">`;
-        } else {
-            contentHtml = `<div class="message-bubble">${message.content}</div>`;
-        }
-        messageDiv.innerHTML = contentHtml;
-
-        if(message.isEdited) {
-            const editedIndicator = document.createElement('span');
-            editedIndicator.className = 'edited-indicator';
-            editedIndicator.textContent = '(edited)';
-            messageDiv.querySelector('.message-bubble')?.appendChild(editedIndicator);
-        }
-
-        if (isNew) {
+    socket.on('newMessage', (data) => {
+        // If the new message belongs to the currently open chat, append it
+        if (data.chatId === currentChatId) {
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${data.senderId === currentUser.userId ? 'sent' : 'received'}`;
+            messageEl.dataset.messageId = data.messageId;
+            let content = '';
+            if (data.imageUrl) {
+                content = `<img src="${data.imageUrl}" class="message-image">`;
+            } else {
+                content = data.content;
+            }
+            messageEl.innerHTML = `<div class="message-bubble">${content}</div>`;
+            chatMessages.appendChild(messageEl);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
+
+        // Update the last message in the chat history list
+        const chatHistoryItem = document.querySelector(`.chat-history-item[data-chat-id="${data.chatId}"]`);
+        if (chatHistoryItem) {
+            const lastMessageEl = chatHistoryItem.querySelector('p');
+            if (lastMessageEl) {
+                lastMessageEl.textContent = data.imageUrl ? '📷 Image' : data.content;
+            }
+        }
+
+        showNotification(`New message from ${data.sender.username}`);
+        const chatHead = document.querySelector(`.chat-head[data-chat-id="${data.chatId}"]`);
+        if (chatHead) {
+            const badge = document.createElement('div');
+            badge.className = 'notification-badge';
+            badge.textContent = '1';
+            chatHead.appendChild(badge);
+        }
+    });
+
+    socket.on('messageUpdated', (data) => {
+        const messageEl = document.querySelector(`[data-message-id="${data.messageId}"]`);
+        if (messageEl) {
+            const messageBubble = messageEl.querySelector('.message-bubble');
+            if (messageBubble) {
+                messageBubble.textContent = data.content;
+            }
+        }
+
+        // Update the last message in the chat history list if it was the one that was edited
+        const chatHistoryItem = document.querySelector(`.chat-history-item[data-chat-id="${data.chatId}"]`);
+        if (chatHistoryItem) {
+            const lastMessageEl = chatHistoryItem.querySelector('p');
+            if (lastMessageEl && lastMessageEl.textContent !== data.content) { // Check if it was the last message
+                // This is a simplification. A more robust solution would be to check the message timestamp.
+                lastMessageEl.textContent = data.content;
+            }
+        }
+    });
+
+    function closeChatWindow() {
+        document.querySelector('.chat-area').classList.remove('visible');
+        chatWindow.classList.remove('visible');
+        chatHeadsContainer.classList.remove('chat-open');
     }
 
-    // --- Event Listeners ---
-
-    // Initial Authentication
-    loginBtn.addEventListener('click', async () => {
-        const email = emailInput.value;
-        const password = passwordInput.value;
-        if (!email || !password) return alert('Please enter email and password.');
+    async function handleLogin(loginIdentifier, password) {
+        const userLoginIdentifier = loginIdentifier || loginInput.value;
+        const userPassword = password || passwordInput.value;
+        if (!userLoginIdentifier || !userPassword) {
+            alert('Please enter email/handle and password');
+            return;
+        }
         try {
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ loginIdentifier: userLoginIdentifier, password: userPassword })
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.message);
-            localStorage.setItem('token', data.token);
-            currentUser = data.user;
-            initializeAppUI(data.user);
+            if (response.ok) {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                currentUser = data.user;
+                showChatUI();
+            } else {
+                alert(data.message);
+            }
         } catch (error) {
-            console.error('Login failed:', error);
+            console.error('Login error:', error);
+            alert('An error occurred during login.');
         }
-    });
-    passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn.click(); });
-    logoutBtn.addEventListener('click', () => {
-        localStorage.removeItem('token');
-        location.reload();
-    });
+    }
 
-    // Signup Modal
-    showSignupBtn.addEventListener('click', () => signupOverlay.classList.add('visible'));
-    closeSignupBtn.addEventListener('click', () => signupOverlay.classList.remove('visible'));
-    signupBtn.addEventListener('click', async () => {
+    async function handleSignup() {
         const name = signupName.value;
         const handle = signupHandle.value;
         const email = signupEmail.value;
         const password = signupPassword.value;
-        if (!name || !handle || !email || !password) return alert('Please fill out all fields.');
+        if (!name || !handle || !email || !password) {
+            alert('Please fill out all fields');
+            return;
+        }
         try {
             const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: name, handle, email, password })
+                body: JSON.stringify({ username: name, email, password, handle })
             });
-            if (!response.ok) throw new Error((await response.json()).message);
-            alert('Registration successful! Please log in.');
-            signupOverlay.classList.remove('visible');
+            const data = await response.json();
+            if (response.ok) {
+                signupOverlay.classList.remove('visible');
+                await handleLogin(handle, password);
+            } else {
+                alert(data.message);
+            }
         } catch (error) {
-            console.error('Signup failed:', error);
-            alert('Signup failed: ' + error.message);
+            console.error('Signup error:', error);
+            alert('An error occurred during signup.');
         }
-    });
+    }
 
-    // Main UI Interactions
-    historyBtn.addEventListener('click', () => chatHistory.classList.toggle('visible'));
-    requestsBtn.addEventListener('click', async () => {
-        requestsOverlay.classList.add('visible');
-        // Additional logic... 
-    });
-    closeRequestsBtn.addEventListener('click', () => requestsOverlay.classList.remove('visible'));
+    function handleLogout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        currentUser = null;
+        chatMessages.innerHTML = '';
+        chatHeaderName.textContent = '';
+        showAuthUI();
+    }
 
-    // Self Profile
-    userProfile.addEventListener('click', () => {
-        profileOverlay.classList.add('self-profile');
-        profileModalPic.style.cursor = 'pointer';
-        profileModalPic.src = currentUser.profilePictureUrl || 'https://via.placeholder.com/40';
-        profileModalName.textContent = currentUser.username;
-        profileModalHandle.textContent = currentUser.email;
-        profileAddBtn.style.display = 'none';
-        profileOverlay.classList.add('visible');
-    });
-
-    // Overlays Closing
-    [signupOverlay, profileOverlay, requestsOverlay].forEach(overlay => {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                overlay.classList.remove('visible');
-                if (overlay === profileOverlay) {
-                    profileOverlay.classList.remove('self-profile');
-                    profileModalPic.style.cursor = 'default';
-                    profileAddBtn.style.display = 'block';
-                }
-            }
-        });
-    });
-    closeProfileBtn.addEventListener('click', () => {
-        profileOverlay.classList.remove('visible', 'self-profile');
-        profileModalPic.style.cursor = 'default';
-        profileAddBtn.style.display = 'block';
-    });
-
-    // Search and Chat List Interactions
-    searchResults.addEventListener('click', (e) => {
-        const resultItem = e.target.closest('.search-result-item');
-        if (!resultItem) return;
-        const { userId, username, profilePictureUrl } = resultItem.dataset;
-        if (e.target.classList.contains('add-friend-btn')) {
-            profileModalPic.src = profilePictureUrl;
-            // Other fields... 
-            profileOverlay.classList.add('visible');
-        } else if (e.target.classList.contains('start-chat-btn')) {
-            const chatId = e.target.dataset.chatId;
-            openChatWindow(chatId, { username, profilePictureUrl });
-        }
-    });
-
-    chatHistoryList.addEventListener('click', (e) => {
-        const chatItem = e.target.closest('.chat-history-item');
-        if (!chatItem) return;
-        const { chatId, otherUsername, otherProfilePic } = chatItem.dataset;
-        openChatWindow(chatId, { username: otherUsername, profilePictureUrl: otherProfilePic });
-    });
-
-    chatHistoryList.addEventListener('scroll', () => {
-        const listCenter = chatHistoryList.scrollTop + chatHistoryList.offsetHeight / 2;
-        const items = chatHistoryList.querySelectorAll('.chat-history-item');
-        items.forEach(item => {
-            const itemCenter = item.offsetTop + item.offsetHeight / 2;
-            const distance = listCenter - itemCenter;
-            const rotation = Math.max(-30, Math.min(30, distance * 0.1)); // Clamp rotation between -30 and 30 degrees
-            item.style.transform = `rotateY(${rotation}deg)`;
-        });
-    });
-
-    // Image Uploads
-    uploadBtn.addEventListener('click', () => imageUpload.click());
-    imageUpload.addEventListener('change', async (e) => { /* ... */ });
-    profileImageUpload.addEventListener('change', async (e) => { /* ... */ });
-
-    // Message Sending
-    const sendBtn = document.getElementById('send-btn');
-    const messageInput = document.getElementById('message-input');
-    sendBtn.addEventListener('click', () => {
-        const text = messageInput.value;
-        if (!text.trim() || !currentUser || !currentChatId) return;
-        const message = { chatId: currentChatId, senderId: currentUser.userId, content: text };
-        socket.emit('sendMessage', message);
-        appendMessage({ ...message, messageId: `temp-${Date.now()}` });
-        messageInput.value = '';
-    });
-    messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
-
-    // Context Menu for Messages
-    let contextMenuTargetMessage = null;
-    chatMessages.addEventListener('contextmenu', e => {
-        const msgElement = e.target.closest('.message.sent');
-        if(!msgElement) return;
-        e.preventDefault();
-        contextMenuTargetMessage = msgElement;
-        messageContextMenu.style.left = `${e.clientX}px`;
-        messageContextMenu.style.top = `${e.clientY}px`;
-        messageContextMenu.style.display = 'block';
-    });
-    window.addEventListener('click', () => { messageContextMenu.style.display = 'none'; });
-    deleteMessageBtn.addEventListener('click', () => { 
-        const messageId = contextMenuTargetMessage.dataset.messageId; 
-        socket.emit('deleteMessage', { messageId, chatId: currentChatId, userId: currentUser.userId }); 
-    });
-    editMessageBtn.addEventListener('click', () => {
-        if (!contextMenuTargetMessage) return;
-        const bubble = contextMenuTargetMessage.querySelector('.message-bubble');
-        if (!bubble) return; // Can't edit images
-
-        const currentText = bubble.textContent.replace(' (edited)',''); // Remove existing edited tag
-        bubble.innerHTML = `<input type="text" class="edit-message-input" value="${currentText}">`;
-        const input = bubble.querySelector('input');
-        input.focus();
-
-        const messageId = contextMenuTargetMessage.dataset.messageId;
-
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                socket.emit('editMessage', {
-                    messageId,
-                    chatId: currentChatId,
-                    userId: currentUser.userId,
-                    newContent: e.target.value
+    async function checkAuth() {
+        const token = localStorage.getItem('token');
+        console.log('Token from local storage:', token);        if (token) {
+            try {
+                const response = await fetch('/api/user', {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
-                // The UI will be updated by the messageUpdated event
-            } else if (e.key === 'Escape') {
-                bubble.textContent = currentText;
-            }
-        });
-    });
-
-
-    // --- Socket.IO Listeners ---
-    socket.on('messageUpdated', updatedMessage => {
-        const messageElement = chatMessages.querySelector(`[data-message-id="${updatedMessage.messageId}"]`);
-        if (messageElement) {
-            const bubble = messageElement.querySelector('.message-bubble');
-            if (bubble) {
-                bubble.textContent = updatedMessage.content;
-                if(updatedMessage.isEdited) {
-                    const editedIndicator = document.createElement('span');
-                    editedIndicator.className = 'edited-indicator';
-                    editedIndicator.textContent = ' (edited)';
-                    bubble.appendChild(editedIndicator);
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUser = user;
+                    showChatUI();
+                } else {
+                    handleLogout();
                 }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                handleLogout();
             }
         }
-    });
-    socket.on('messagesWereRead', ({ chatId }) => { /* ... */ });
-    socket.on('newMessage', (message) => {
-        if (message.chatId === currentChatId) {
-            appendMessage(message);
-        }
-        // TODO: update chat history list with new message preview
-    });
+    }
 
-    // --- Initial Load ---
-    const token = localStorage.getItem('token');
-    if (token) {
-        // Fetch user data with token and initialize app
-    } else {
-        authContainer.classList.add('visible');
-    } 
+    // Event Listeners
+    setupEventListeners();
+
+    // Initial call to check authentication status
+    checkAuth();
 });

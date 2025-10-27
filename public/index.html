@@ -13,8 +13,9 @@
         <canvas id="bg-canvas"></canvas>
 
         <div class="auth-container" id="auth-container">
-            <div class="logo">nexy</div>
-            <input type="email" class="auth-input" id="email-input" placeholder="Email">
+            <img src="/img/Logo.png" alt="Nexy Logo" class="logo-img">
+
+                <input type="text" class="auth-input" id="login-input" placeholder="Email or Handle">
             <input type="password" class="auth-input" id="password-input" placeholder="Password">
             <button class="auth-btn" id="login-btn">Log In</button>
             <div class="signup-link">
@@ -23,47 +24,55 @@
         </div>
 
         <div class="chat-ui-container" id="chat-ui">
-            <div class="top-bar">
-                <input type="text" id="search-input" class="top-bar-search" placeholder="Search by @handle">
-                <button class="top-bar-btn" id="history-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                    <span>History</span>
-                </button>
-                <button class="top-bar-btn" id="requests-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                    <span>Requests</span>
-                </button>
-                <button class="top-bar-btn" id="logout-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                    <span>Logout</span>
-                </button>
-                                <div id="user-profile"></div>
-                            </div>
-                
-                            <div class="chat-history-container" id="chat-history">
-                                <div class="chat-history-header"><h3>Chats</h3></div>
-                                <div class="chat-history-list"></div>
-                            </div>
-                
-                            <div id="search-results"></div>
+            <div id="chat-heads-container"></div>
+            <div class="sidebar">
+                <div class="top-bar">
+                    <input type="text" id="search-input" class="top-bar-search" placeholder="Search by @handle">
+                    <button class="top-bar-btn" id="chats-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <span>Chats</span>
+                    </button>
+                    <button class="top-bar-btn" id="requests-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span>Requests</span>
+                    </button>
+                    <div id="user-profile"></div>
+                    <button class="top-bar-btn" id="logout-btn">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <span>Logout</span>
+                    </button>
+                </div>
 
-            <div class="chat-window" id="chat-window">
-                <div class="chat-header">
-                    <button class="close-btn" id="close-chat-btn">&times;</button>
-                    <div class="chat-header-info">
-                        <h3></h3>
-                        <div class="online-indicator"></div>
+                <div class="chat-history-container" id="chat-history">
+                    <div class="chat-history-header">
+                    <h3>Chats</h3>
+                    <button class="close-btn" id="close-chat-history-btn">&times;</button>
+                </div>
+                    <div class="chat-history-list"></div>
+                </div>
+
+                <div id="search-results"></div>
+            </div>
+            <div class="chat-area">
+                <div class="chat-window" id="chat-window">
+                    <div class="chat-header">
+                        <button class="close-btn" id="close-chat-btn">&times;</button>
+                        <div class="chat-header-info">
+                            <h3></h3>
+                            <div class="online-indicator"></div>
+                        </div>
+                    </div>
+                    <div class="chat-messages"></div>
+                    <div class="typing-indicator"></div>
+                    <div class="chat-input-area">
+                        <input type="file" id="image-upload" accept="image/*" style="display: none;">
+                        <button id="upload-btn">+</button>
+                        <input type="text" id="message-input" placeholder="Type a message...">
+                        <button id="send-btn">Send</button>
                     </div>
                 </div>
-                <div class="chat-messages"></div>
-                <div class="typing-indicator"></div>
-                <div class="chat-input-area">
-                    <input type="file" id="image-upload" accept="image/*" style="display: none;">
-                    <button id="upload-btn">+</button>
-                    <input type="text" id="message-input" placeholder="Type a message...">
-                    <button id="send-btn">Send</button>
-                </div>
             </div>
+        </div>
 
             <div class="overlay" id="requests-overlay">
                 <div class="modal" id="requests-panel">
@@ -79,7 +88,7 @@
                     <img src="" alt="Profile Picture" class="profile-modal-pic">
                     <h2 class="profile-modal-name"></h2>
                     <p class="profile-modal-handle"></p>
-                    <button class="auth-btn" id="profile-add-btn">Add Friend</button>
+
                 </div>
             </div>
         </div>
@@ -90,6 +99,8 @@
                 <li id="delete-message-btn">Delete</li>
             </ul>
         </div>
+
+        <div id="notification-container"></div>
 
         <div class="overlay" id="signup-overlay">
             <div class="modal">
@@ -105,8 +116,9 @@
     </div>
 
     <input type="file" id="profile-image-upload" accept="image/*" style="display: none;">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-    <script type="module" src="/js/app.js"></script>
-    <script type="module" src="/js/dummy_accounts.js"></script>
+    <script type="module" src="/js/app.js" defer></script>
+    <script type="module" src="/js/dummy_accounts.js" defer></script>
 </body>
 </html>

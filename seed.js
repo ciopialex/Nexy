@@ -26,26 +26,26 @@ async function seedDatabase() {
     const janePassword = await bcrypt.hash('password123', SALT_ROUNDS);
 
     const [adminResult] = await connection.execute(
-      'INSERT INTO Users (username, email, passwordHash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE username=username',
-      ['admin', 'admin@example.com', adminPassword]
+      'INSERT INTO Users (username, email, passwordHash, handle) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE username=username',
+      ['admin', 'admin@example.com', adminPassword, '@admin']
     );
     const adminId = adminResult.insertId || (await connection.execute('SELECT userId FROM Users WHERE username = ?', ['admin']))[0][0].userId;
 
     const [johnResult] = await connection.execute(
-      'INSERT INTO Users (username, email, passwordHash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE username=username',
-      ['john', 'john@example.com', johnPassword]
+      'INSERT INTO Users (username, email, passwordHash, handle) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE username=username',
+      ['john', 'john@example.com', johnPassword, '@john']
     );
     const johnId = johnResult.insertId || (await connection.execute('SELECT userId FROM Users WHERE username = ?', ['john']))[0][0].userId;
 
     const [janeResult] = await connection.execute(
-      'INSERT INTO Users (username, email, passwordHash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE username=username',
-      ['jane', 'jane@example.com', janePassword]
+      'INSERT INTO Users (username, email, passwordHash, handle) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE username=username',
+      ['jane', 'jane@example.com', janePassword, '@jane']
     );
     const janeId = janeResult.insertId || (await connection.execute('SELECT userId FROM Users WHERE username = ?', ['jane']))[0][0].userId;
 
     const [peterResult] = await connection.execute(
-      'INSERT INTO Users (username, email, passwordHash) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE username=username',
-      ['peter', 'peter@example.com', await bcrypt.hash('password123', SALT_ROUNDS)]
+      'INSERT INTO Users (username, email, passwordHash, handle) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE username=username',
+      ['peter', 'peter@example.com', await bcrypt.hash('password123', SALT_ROUNDS), '@peter']
     );
     const peterId = peterResult.insertId || (await connection.execute('SELECT userId FROM Users WHERE username = ?', ['peter']))[0][0].userId;
 

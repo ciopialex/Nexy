@@ -2,11 +2,12 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { generateDefaultPfp } = require('../utils/default-pfp');
 
 module.exports = (dbPool) => {
   const router = express.Router();
   const SALT_ROUNDS = 10;
-  const JWT_SECRET = process.env.JWT_SECRET;
+
 
   // POST /api/register
   router.post('/register', async (req, res) => {
@@ -22,7 +23,13 @@ module.exports = (dbPool) => {
         'INSERT INTO Users (username, email, passwordHash) VALUES (?, ?, ?)',
         [username, email, hashedPassword]
       );
-      res.status(201).json({ message: 'User registered successfully', userId: result.insertId });
+
+      const userId = result.insertId;
+      const profilePictureUrl = generateDefaultPfp(userId);
+
+      await dbPool.execute('UPDATE Users SET profilePictureUrl = ? WHERE userId = ?', [profilePictureUrl, userId]);
+
+      res.status(201).json({ message: 'User registered successfully', userId });
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') {
         return res.status(409).json({ message: 'Username or email already exists.' });
@@ -34,27 +41,30 @@ module.exports = (dbPool) => {
 
   // POST /api/login
   router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
+    console.log('Login request received:', req.body);
+    const { loginIdentifier, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required.' });
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({ message: 'Email/Handle and password are required.' });
     }
 
     try {
-      const [rows] = await dbPool.execute('SELECT * FROM Users WHERE email = ?', [email]);
+      const [rows] = await dbPool.execute('SELECT * FROM Users WHERE email = ? OR handle = ?', [loginIdentifier, loginIdentifier]);
       const user = rows[0];
+      console.log('User from DB:', user);
 
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials.' });
       }
 
       const isMatch = await bcrypt.compare(password, user.passwordHash);
+      console.log('Password match:', isMatch);
 
       if (!isMatch) {
         return res.status(401).json({ message: 'Invalid credentials.' });
       }
 
-      const token = jwt.sign({ userId: user.userId, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ userId: user.userId, username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
       res.json({ 
           message: 'Login successful', 

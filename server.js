@@ -43,11 +43,13 @@ const userRoutes = require('./routes/users');
 const uploadRoutes = require('./routes/uploads');
 const requestRoutes = require('./routes/requests');
 const chatRoutes = require('./routes/chats');
+const userRoute = require('./routes/user');
 app.use('/api', authRoutes(dbPool));
 app.use('/api', userRoutes(dbPool));
 app.use('/api', uploadRoutes(dbPool, io));
 app.use('/api', requestRoutes(dbPool));
 app.use('/api', chatRoutes(dbPool));
+app.use('/api/user', userRoute(dbPool));
 
 // --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {
