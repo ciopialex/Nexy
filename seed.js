@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
@@ -78,7 +77,6 @@ async function seedDatabase() {
       [chat2Id, adminId, chat2Id, janeId]
     );
     console.log(`Chat created between admin and jane with ID: ${chat2Id}`);
-
 
     // --- 4. Add Messages ---
     console.log('Adding messages to the chats...');

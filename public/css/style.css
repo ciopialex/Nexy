@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-
 :root {
     --background-color: #1a1a1a;
     --primary-color: #90ee90;
@@ -10,7 +9,6 @@
     --font-primary: 'Roboto', sans-serif;
     --font-secondary: 'Roboto', sans-serif;
 }
-
 body, html {
     margin: 0;
     padding: 0;
@@ -21,13 +19,11 @@ body, html {
     background-color: var(--background-color);
     color: var(--text-color);
 }
-
 .container {
     width: 100%;
     height: 100%;
     position: relative;
 }
-
 #bg-canvas {
     position: absolute;
     top: 0;
@@ -36,7 +32,6 @@ body, html {
     height: 100%;
     z-index: 1;
 }
-
 .auth-container {
     position: absolute;
     top: 50%;
@@ -55,18 +50,15 @@ body, html {
     width: 90%;
     max-width: 400px;
 }
-
 .logo-img {
     width: 150px;
     margin-bottom: 20px;
 }
-
 .auth-container.hidden {
     opacity: 0;
     transform: translate(-50%, -60%);
     pointer-events: none;
 }
-
 .logo {
     font-family: var(--font-primary);
     font-weight: 700;
@@ -75,7 +67,6 @@ body, html {
     margin-bottom: 30px;
     text-shadow: 0 0 2px rgba(144, 238, 144, 0.2);
 }
-
 .auth-input {
     width: 280px;
     padding: 15px;
@@ -86,7 +77,6 @@ body, html {
     font-family: var(--font-secondary);
     font-size: 16px;
 }
-
 .auth-btn {
     width: 310px;
     padding: 15px;
@@ -100,19 +90,16 @@ body, html {
     cursor: pointer;
     transition: background-color 0.3s, color 0.3s;
 }
-
 .auth-btn:hover {
     background-color: var(--background-color);
     color: var(--primary-color);
 }
-
 .signup-link {
     margin-top: 20px;
     color: var(--text-color);
     font-family: var(--font-secondary);
     font-size: 14px;
 }
-
 .signup-link button {
     background: none;
     border: none;
@@ -121,7 +108,6 @@ body, html {
     font-size: 14px;
     cursor: pointer;
 }
-
 .overlay {
     position: fixed;
     top: 0;
@@ -137,12 +123,10 @@ body, html {
     pointer-events: none;
     transition: opacity 0.4s ease;
 }
-
 .overlay.visible {
     opacity: 1;
     pointer-events: auto;
 }
-
 .modal {
     background: var(--secondary-color);
     padding: 30px;
@@ -153,32 +137,26 @@ body, html {
     transform: scale(0.95) translateY(10px);
     transition: transform 0.4s ease;
 }
-
 .overlay.visible .modal {
     transform: scale(1) translateY(0);
 }
-
 .profile-modal-pic {
   width: 150px;
   height: 150px;
   border-radius: 50%;
   margin-bottom: 20px;
 }
-
 .modal h2 {
     margin-top: 0;
     font-family: var(--font-primary);
     color: var(--primary-color);
 }
-
 .modal input {
     width: calc(100% - 30px);
 }
-
 .modal .auth-btn {
     width: 100%;
 }
-
 .close-btn {
     position: absolute;
     top: 15px;
@@ -189,7 +167,6 @@ body, html {
     cursor: pointer;
     color: var(--primary-color);
 }
-
 .chat-ui-container {
     position: absolute;
     top: 0;
@@ -201,12 +178,10 @@ body, html {
     opacity: 0;
     transition: opacity 0.5s;
 }
-
 .chat-ui-container.visible {
     display: block;
     opacity: 1;
 }
-
 .top-bar {
     position: absolute;
     top: 20px;
@@ -220,7 +195,6 @@ body, html {
     border: 1px solid var(--border-color);
     backdrop-filter: blur(10px);
 }
-
 .top-bar-btn {
     background: none;
     border: none;
@@ -233,23 +207,19 @@ body, html {
     font-size: 16px;
     padding: 5px 10px;
 }
-
 .top-bar-btn svg {
     width: 20px;
     height: 20px;
 }
-
 .top-bar-btn:hover {
     color: var(--text-color);
 }
-
 .mini-profile-pic {
     width: 30px;
     height: 30px;
     border-radius: 50%;
     margin-right: 10px;
 }
-
 .top-bar-search {
     padding: 8px 12px;
     border: 1px solid var(--border-color);
@@ -258,22 +228,18 @@ body, html {
     font-family: var(--font-secondary);
     font-size: 16px;
 }
-
 #user-profile {
     text-align: right;
 }
-
 .user-profile-name {
     font-family: var(--font-primary);
     font-size: 18px;
 }
-
 .user-profile-handle {
     font-family: var(--font-primary);
     font-size: 14px;
     color: var(--primary-color);
 }
-
 .chat-history-container {
     position: fixed;
     left: 0;
@@ -289,11 +255,9 @@ body, html {
     transform: translateX(-100%);
     transition: transform 0.4s ease;
 }
-
 .chat-history-container.visible {
     transform: translateX(0);
 }
-
 .chat-history-header {
     display: flex;
     justify-content: space-between;
@@ -301,25 +265,21 @@ body, html {
     padding: 20px;
     border-bottom: 1px solid var(--border-color);
 }
-
 .chat-history-header h3 {
     margin: 0;
     font-family: var(--font-primary);
     font-size: 24px;
     color: var(--primary-color);
 }
-
 .chat-history-header .close-btn {
     position: static;
     font-size: 30px;
 }
-
 .chat-history-list {
     flex: 1;
     overflow-y: auto;
     padding: 10px;
 }
-
 .chat-history-item {
     display: flex;
     align-items: center;
@@ -328,29 +288,24 @@ body, html {
     border-bottom: 1px solid #333;
     transition: background-color 0.2s;
 }
-
 .chat-history-item:last-child {
     border-bottom: none;
 }
-
 .chat-history-item:hover {
     background-color: rgba(144, 238, 144, 0.1);
 }
-
 .chat-history-item img {
     width: 50px;
     height: 50px;
     border-radius: 50%;
     margin-right: 15px;
 }
-
 .chat-history-info h4 {
     margin: 0;
     font-size: 16px;
     font-weight: 500;
     color: var(--text-color);
 }
-
 .chat-history-info p {
     margin: 0;
     font-size: 14px;
@@ -360,7 +315,6 @@ body, html {
     text-overflow: ellipsis;
     max-width: 180px;
 }
-
 .chat-area {
     position: fixed;
     top: 0;
@@ -376,12 +330,10 @@ body, html {
     pointer-events: none;
     transition: opacity 0.4s ease;
 }
-
 .chat-area.visible {
     opacity: 1;
     pointer-events: auto;
 }
-
 .chat-window {
     width: 80%;
     max-width: 800px;
@@ -395,26 +347,22 @@ body, html {
     transform: scale(0.95) translateY(10px);
     transition: transform 0.4s ease;
 }
-
 .chat-header {
     display: flex;
     align-items: center;
     padding: 20px;
     border-bottom: 1px solid var(--border-color);
 }
-
 .chat-header-info {
     flex: 1;
     text-align: center;
 }
-
 .chat-header-info h3 {
     margin: 0;
     font-family: var(--font-primary);
     font-size: 24px;
     color: var(--primary-color);
 }
-
 .online-indicator {
     width: 10px;
     height: 10px;
@@ -423,19 +371,12 @@ body, html {
     display: inline-block;
     margin-left: 10px;
 }
-
 .online-indicator.online {
     background-color: var(--primary-color);
 }
-
 .chat-area.history-visible .chat-window {
-
     margin-left: 320px;
-
 }
-
-
-
 .chat-messages {
     flex: 1;
     overflow-y: auto;
@@ -443,45 +384,36 @@ body, html {
     display: flex;
     flex-direction: column;
 }
-
 .message {
     display: flex;
     margin-bottom: 15px;
 }
-
 .message.sent {
     justify-content: flex-end;
 }
-
 .message.received {
     justify-content: flex-start;
 }
-
 .message-bubble {
     max-width: 70%;
     padding: 10px 15px;
     border-radius: 20px;
     color: var(--background-color);
 }
-
 .message.sent .message-bubble {
     background-color: var(--primary-color);
 }
-
 .message.received .message-bubble {
     background-color: #4a4a4a;
     color: var(--text-color);
 }
-
 .message-image {
     max-width: 100%;
     border-radius: 15px;
 }
-
 .chat-area.visible .chat-window {
     transform: scale(1) translateY(0);
 }
-
 @media (max-width: 768px) {
     .chat-window {
         width: 100%;
@@ -491,16 +423,13 @@ body, html {
         border: none;
         border-radius: 0;
     }
-
     .chat-area.history-visible .chat-window {
         margin-left: 0;
     }
-
     .chat-history-container {
         width: 100%;
     }
 }
-
 .context-menu {
     position: fixed;
     z-index: 1000;
@@ -510,86 +439,85 @@ body, html {
     border-radius: 5px;
     display: none;
 }
-
 .context-menu.visible {
     display: block;
 }
-
 .context-menu ul {
     list-style: none;
     padding: 10px;
     margin: 0;
 }
-
 .context-menu ul li {
     padding: 10px;
     cursor: pointer;
 }
-
 .context-menu ul li:hover {
     background-color: var(--primary-color);
     color: var(--background-color);
 }
-
-
-
-
 .chat-input-area {
-
     display: flex;
-
     padding: 10px;
-
     border-top: 1px solid var(--border-color);
-
 }
-
-
-
 #message-input {
-
     flex: 1;
-
     padding: 10px;
-
     border: 1px solid var(--border-color);
-
     background-color: var(--secondary-color);
-
     color: var(--text-color);
-
     font-family: var(--font-secondary);
-
     font-size: 16px;
-
     margin: 0 10px;
-
 }
-
-
-
 #upload-btn, #send-btn {
-
     background: none;
-
     border: 1px solid var(--primary-color);
-
     color: var(--primary-color);
-
     padding: 10px 15px;
-
     cursor: pointer;
-
     transition: background-color 0.3s, color 0.3s;
-
+}
+#upload-btn:hover, #send-btn:hover {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+}
+.input-container {
+    position: relative;
+    margin-bottom: 15px;
+    width: 100%;
 }
 
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
 
+.show-password-btn {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+}
 
-#upload-btn:hover, #send-btn:hover {
+.error-message {
+    color: #ff6b6b;
+    font-size: 14px;
+    margin-top: 5px;
+    height: 20px;
+    text-align: center;
+}
 
-    background-color: var(--primary-color);
+.auth-input{
+    width: 100%;
+    box-sizing: border-box;
+}
 
-    color: var(--background-color);
-
+.auth-btn{
+    width: 100%;
+    box-sizing: border-box;
 }

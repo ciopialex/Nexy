@@ -85,7 +85,7 @@ To build a sleek, modern, single-page chat application named Nexy. The primary f
     1.  Make the user's own profile element in the top bar clickable.
     2.  On click, open an "Edit Profile" overlay that shows their current picture.
     3.  Clicking the picture will trigger the hidden file input.
-    4.  The upload will use the existing `/api/upload` endpoint with `type: 'profile'`.
+    4.  The upload will use the existing `/api/upload` endpoint with `type: \'profile\'`.
     5.  On success, the UI will update instantly with the new profile picture.
 
 ### Priority 2: Read Receipts ("Seen" Status)

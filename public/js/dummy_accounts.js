@@ -1,4 +1,3 @@
-
 window.createDummyAccounts = async function() {
     const auth = window.auth;
     const db = window.db;
@@ -41,7 +40,6 @@ window.createDummyAccounts = async function() {
             }
 
             await signOut(auth);
-
         } catch (error) {
             console.error("Error creating dummy account:", error.message);
         }

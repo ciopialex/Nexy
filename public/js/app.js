@@ -1,11 +1,8 @@
 import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
-
 const socket = io('http://localhost:3000');
-
 let currentUser = null;
 let currentChatId = null;
 let selectedMessageId = null;
-
 document.addEventListener('DOMContentLoaded', () => {
     // Global variables
     const authContainer = document.getElementById('auth-container');
@@ -48,9 +45,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteMessageBtn = document.getElementById('delete-message-btn');
     const sendBtn = document.getElementById('send-btn');
     const messageInput = document.getElementById('message-input');
-
-        const closeChatHistoryBtn = document.getElementById('close-chat-history-btn');
-
+    const closeChatHistoryBtn = document.getElementById('close-chat-history-btn');
+    const showPasswordLoginBtn = document.getElementById('show-password-login-btn');
+    const showPasswordSignupBtn = document.getElementById('show-password-signup-btn');
+    const loginError = document.getElementById('login-error');
+    const signupError = document.getElementById('signup-error');
     function setupEventListeners() {
         loginBtn.addEventListener('click', () => handleLogin());
         passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
@@ -82,424 +81,86 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleSendMessage();
             }
         });
+        showPasswordLoginBtn.addEventListener('click', () => {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                showPasswordLoginBtn.textContent = 'Hide';
+            } else {
+                passwordInput.type = 'password';
+                showPasswordLoginBtn.textContent = 'Show';
+            }
+        });
+        showPasswordSignupBtn.addEventListener('click', () => {
+            if (signupPassword.type === 'password') {
+                signupPassword.type = 'text';
+                showPasswordSignupBtn.textContent = 'Hide';
+            } else {
+                signupPassword.type = 'password';
+                showPasswordSignupBtn.textContent = 'Show';
+            }
+        });
     }
-
     function hideProfile() {
-
             profileOverlay.classList.remove('visible');
-
         }
-
-    
-
         function showContextMenu(e) {
-
             const messageEl = e.target.closest('.message.sent');
-
             if (!messageEl) return;
-
-    
-
             e.preventDefault();
-
-    
-
             selectedMessageId = messageEl.dataset.messageId;
-
-    
-
             messageContextMenu.style.top = `${e.clientY}px`;
-
             messageContextMenu.style.left = `${e.clientX}px`;
-
             messageContextMenu.classList.add('visible');
-
-    
-
             const clickListener = () => {
-
                 messageContextMenu.classList.remove('visible');
-
                 document.removeEventListener('click', clickListener);
-
             };
-
             document.addEventListener('click', clickListener);
-
                 }
-
-            
-
                 function handleDeleteMessage() {
-
                     if (!selectedMessageId) return;
-
-            
-
                     socket.emit('deleteMessage', {
-
-            
-
                                 messageId: selectedMessageId,
-
-            
-
                                 chatId: currentChatId,
-
-            
-
                                 userId: currentUser.userId
-
-            
-
                             });
-
-            
-
                         }
-
-            
-
-                    
-
-            
-
                         function handleEditMessage() {
-
-            
-
-                    
-
-            
-
                                 if (!selectedMessageId) return;
-
-            
-
-                    
-
-            
-
-                        
-
-            
-
-                    
-
-            
-
                                 const messageEl = document.querySelector(`[data-message-id="${selectedMessageId}"]`);
-
-            
-
-                    
-
-            
-
                                 if (!messageEl) return;
-
-            
-
-                    
-
-            
-
-                        
-
-            
-
-                    
-
-            
-
                                 const messageBubble = messageEl.querySelector('.message-bubble');
-
-            
-
-                    
-
-            
-
                                 if (!messageBubble) return;
-
-            
-
-                    
-
-            
-
-                        
-
-            
-
-                    
-
-            
-
                                 const currentContent = messageBubble.textContent;
-
-            
-
-                    
-
-            
-
                                 const input = document.createElement('input');
-
-            
-
-                    
-
-            
-
                                 input.type = 'text';
-
-            
-
-                    
-
-            
-
                                 input.value = currentContent;
-
-            
-
-                    
-
-            
-
-                        
-
-            
-
-                    
-
-            
-
                                 messageBubble.innerHTML = '';
-
-            
-
-                    
-
-            
-
                                 messageBubble.appendChild(input);
-
-            
-
-                    
-
-            
-
                                 input.focus();
-
-            
-
-                    
-
-            
-
-                        
-
-            
-
-                    
-
-            
-
                                 input.addEventListener('keydown', (e) => {
-
-            
-
-                    
-
-            
-
                                     if (e.key === 'Enter') {
-
-            
-
-                    
-
-            
-
                                         const newContent = input.value;
-
-            
-
-                    
-
-            
-
                                         socket.emit('editMessage', {
-
-            
-
-                    
-
-            
-
                                             messageId: selectedMessageId,
-
-            
-
-                    
-
-            
-
                                             chatId: currentChatId,
-
-            
-
-                    
-
-            
-
                                             userId: currentUser.userId,
-
-            
-
-                    
-
-            
-
                                             newContent
-
-            
-
-                    
-
-            
-
                                         });
-
-            
-
-                    
-
-            
-
                                         messageBubble.textContent = newContent;
-
-            
-
-                    
-
-            
-
                                     }
-
-            
-
-                    
-
-            
-
                                 });
-
-            
-
-                    
-
-            
-
                             }
-
-            
-
-                    
-
-            
-
-                        
-
-            
-
-                    
-
-            
-
                             function handleSendMessage() {
-
-            
-
-                    
-
-            
-
                                 const content = messageInput.value.trim();
-
-            
-
-                    
-
-            
-
                                 if (content) {
-
-            
-
-                    
-
-            
-
                                     socket.emit('sendMessage', {
-
-            
-
-                    
-
-            
-
                                         chatId: currentChatId,
-
-            
-
-                    
-
-            
-
                                         senderId: currentUser.userId,
-
-            
-
-                    
-
-            
-
                                         content
-
-            
-
-                    
-
-            
-
                                     });
-
-            
-
-                    
-
-            
-
                                     messageInput.value = '';
-
-            
-
-                    
-
-            
-
                                 }
-
-            
-
-                    
-
-            
-
                             }    async function loadChatHistory() {
         const token = localStorage.getItem('token');
         try {
@@ -530,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error loading chat history:', error);
         }
     }
-
     function showChatUI() {
         authContainer.classList.add('hidden');
         chatUI.classList.add('visible');
@@ -541,12 +201,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         loadChatHistory();
     }
-
     function showAuthUI() {
         chatUI.classList.remove('visible');
         authContainer.classList.remove('hidden');
     }
-
     function showSelfProfile() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
@@ -556,23 +214,18 @@ document.addEventListener('DOMContentLoaded', () => {
             profileOverlay.classList.add('visible');
         }
     }
-
     function hideProfile() {
         profileOverlay.classList.remove('visible');
     }
-
     async function handleImageUpload(e) {
         const file = e.target.files[0];
         if (!file) return;
-
         const formData = new FormData();
         formData.append('image', file);
         formData.append('chatId', currentChatId);
         formData.append('userId', currentUser.userId);
         formData.append('type', 'chat');
-
         const token = localStorage.getItem('token');
-
         try {
             const response = await fetch('/api/upload', {
                 method: 'POST',
@@ -581,21 +234,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: formData
             });
-
             if (!response.ok) {
                 throw new Error('Image upload failed');
             }
-
             // The server will emit a 'newMessage' event, which will be handled by the socket listener.
-
         } catch (error) {
             console.error('Error uploading image:', error);
             alert('Error uploading image.');
         }
     }
-
-
-
     async function openChatWindow(chat) {
         socket.emit('joinChat', chat.chatId);
         currentChatId = chat.chatId;
@@ -607,11 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 badge.remove();
             }
         }
-
         chatHeadsContainer.classList.add('chat-open');
         chatWindow.classList.add('visible');
         chatHeaderName.textContent = chat.otherUsername;
-
         const token = localStorage.getItem('token');
         try {
             const response = await fetch(`/api/chats/${chat.chatId}/messages`, {
@@ -640,7 +285,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error fetching messages:', error);
         }
     }
-
     socket.on('newMessage', (data) => {
         // If the new message belongs to the currently open chat, append it
         if (data.chatId === currentChatId) {
@@ -657,7 +301,6 @@ document.addEventListener('DOMContentLoaded', () => {
             chatMessages.appendChild(messageEl);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-
         // Update the last message in the chat history list
         const chatHistoryItem = document.querySelector(`.chat-history-item[data-chat-id="${data.chatId}"]`);
         if (chatHistoryItem) {
@@ -666,7 +309,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 lastMessageEl.textContent = data.imageUrl ? '📷 Image' : data.content;
             }
         }
-
         showNotification(`New message from ${data.sender.username}`);
         const chatHead = document.querySelector(`.chat-head[data-chat-id="${data.chatId}"]`);
         if (chatHead) {
@@ -676,7 +318,6 @@ document.addEventListener('DOMContentLoaded', () => {
             chatHead.appendChild(badge);
         }
     });
-
     socket.on('messageUpdated', (data) => {
         const messageEl = document.querySelector(`[data-message-id="${data.messageId}"]`);
         if (messageEl) {
@@ -685,7 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageBubble.textContent = data.content;
             }
         }
-
         // Update the last message in the chat history list if it was the one that was edited
         const chatHistoryItem = document.querySelector(`.chat-history-item[data-chat-id="${data.chatId}"]`);
         if (chatHistoryItem) {
@@ -696,13 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
-
     function closeChatWindow() {
         document.querySelector('.chat-area').classList.remove('visible');
         chatWindow.classList.remove('visible');
         chatHeadsContainer.classList.remove('chat-open');
     }
-
     async function handleLogin(loginIdentifier, password) {
         const userLoginIdentifier = loginIdentifier || loginInput.value;
         const userPassword = password || passwordInput.value;
@@ -730,7 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('An error occurred during login.');
         }
     }
-
     async function handleSignup() {
         const name = signupName.value;
         const handle = signupHandle.value;
@@ -758,7 +395,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('An error occurred during signup.');
         }
     }
-
     function handleLogout() {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -767,7 +403,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatHeaderName.textContent = '';
         showAuthUI();
     }
-
     async function checkAuth() {
         const token = localStorage.getItem('token');
         console.log('Token from local storage:', token);        if (token) {
@@ -788,10 +423,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
     // Event Listeners
     setupEventListeners();
-
     // Initial call to check authentication status
     checkAuth();
 });

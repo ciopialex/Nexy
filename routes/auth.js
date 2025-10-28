@@ -1,4 +1,3 @@
-
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -7,7 +6,6 @@ const { generateDefaultPfp } = require('../utils/default-pfp');
 module.exports = (dbPool) => {
   const router = express.Router();
   const SALT_ROUNDS = 10;
-
 
   // POST /api/register
   router.post('/register', async (req, res) => {

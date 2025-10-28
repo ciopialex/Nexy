@@ -14,9 +14,14 @@
 
         <div class="auth-container" id="auth-container">
             <img src="/img/Logo.png" alt="Nexy Logo" class="logo-img">
-
+            <div class="input-container">
                 <input type="text" class="auth-input" id="login-input" placeholder="Email or Handle">
-            <input type="password" class="auth-input" id="password-input" placeholder="Password">
+                <div class="password-wrapper">
+                    <input type="password" class="auth-input" id="password-input" placeholder="Password">
+                    <button class="show-password-btn" id="show-password-login-btn">Show</button>
+                </div>
+                <div class="error-message" id="login-error"></div>
+            </div>
             <button class="auth-btn" id="login-btn">Log In</button>
             <div class="signup-link">
                 Don't have an account? <button id="show-signup-btn">Sign Up</button>
@@ -106,10 +111,16 @@
             <div class="modal">
                 <button class="close-btn" id="close-signup-btn">&times;</button>
                 <h2>Create Account</h2>
-                <input type="text" class="auth-input" id="signup-name" placeholder="Your Name">
-                <input type="text" class="auth-input" id="signup-handle" placeholder="@handle">
-                <input type="email" class="auth-input" id="signup-email" placeholder="Email">
-                <input type="password" class="auth-input" id="signup-password" placeholder="Password">
+                <div class="input-container">
+                    <input type="text" class="auth-input" id="signup-name" placeholder="Your Name">
+                    <input type="text" class="auth-input" id="signup-handle" placeholder="@handle">
+                    <input type="email" class="auth-input" id="signup-email" placeholder="Email">
+                    <div class="password-wrapper">
+                        <input type="password" class="auth-input" id="signup-password" placeholder="Password">
+                        <button class="show-password-btn" id="show-password-signup-btn">Show</button>
+                    </div>
+                    <div class="error-message" id="signup-error"></div>
+                </div>
                 <button class="auth-btn" id="signup-btn">Sign Up</button>
             </div>
         </div>
