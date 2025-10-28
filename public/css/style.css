@@ -51,7 +51,8 @@ body, html {
     max-width: 400px;
 }
 .logo-img {
-    width: 150px;
+    width: 50%;
+    max-width: 150px;
     margin-bottom: 20px;
 }
 .auth-container.hidden {
@@ -141,8 +142,10 @@ body, html {
     transform: scale(1) translateY(0);
 }
 .profile-modal-pic {
-  width: 150px;
-  height: 150px;
+  width: 50%;
+  max-width: 150px;
+  height: auto;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   margin-bottom: 20px;
 }
@@ -244,7 +247,8 @@ body, html {
     position: fixed;
     left: 0;
     top: 0;
-    width: 320px;
+    width: 80%;
+    max-width: 320px;
     height: 100%;
     background: var(--secondary-color);
     border-right: 1px solid var(--border-color);
@@ -295,8 +299,10 @@ body, html {
     background-color: rgba(144, 238, 144, 0.1);
 }
 .chat-history-item img {
-    width: 50px;
-    height: 50px;
+    width: 15%;
+    max-width: 50px;
+    height: auto;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
     margin-right: 15px;
 }
@@ -423,17 +429,27 @@ body, html {
         border: none;
         border-radius: 0;
     }
+
     .chat-area.history-visible .chat-window {
         margin-left: 0;
     }
+
     .chat-history-container {
         width: 100%;
+        height: 100%;
+        border-radius: 0;
+        border: none;
+    }
+
+    .top-bar {
+        flex-wrap: wrap;
     }
 }
 .context-menu {
     position: fixed;
     z-index: 1000;
-    width: 150px;
+    width: 50%;
+    max-width: 150px;
     background-color: var(--secondary-color);
     border: 1px solid var(--primary-color);
     border-radius: 5px;
@@ -520,4 +536,58 @@ body, html {
 .auth-btn{
     width: 100%;
     box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+    .auth-container {
+        padding: 20px;
+    }
+
+    .logo {
+        font-size: 40px;
+    }
+
+    .modal {
+        padding: 20px;
+    }
+
+    #message-input {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    #upload-btn,
+    #send-btn {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+
+    .chat-history-info h4 {
+        font-size: 14px;
+    }
+
+    .chat-history-info p {
+        font-size: 12px;
+    }
+
+    .top-bar {
+        padding: 5px 10px;
+        gap: 5px;
+    }
+
+    .top-bar-btn,
+    .top-bar-search {
+        font-size: 12px;
+        padding: 5px 8px;
+    }
+
+    .auth-input,
+    .auth-btn {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .auth-btn {
+        margin-top: 5px;
+    }
 }
