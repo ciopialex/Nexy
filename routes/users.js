@@ -15,8 +15,8 @@ module.exports = (dbPool) => {
 
       try {
           const [rows] = await dbPool.execute(
-              'SELECT userId, username, profilePictureUrl FROM Users WHERE username LIKE ? LIMIT 10',
-              [`%${searchTerm}%`]
+              'SELECT userId, username, handle, profilePictureUrl FROM Users WHERE username LIKE ? OR handle LIKE ? LIMIT 10',
+              [`%${searchTerm}%`, `%${searchTerm}%`]
           );
           res.json(rows);
       } catch (error) {

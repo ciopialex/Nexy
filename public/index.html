@@ -15,7 +15,7 @@
         <div class="auth-container" id="auth-container">
             <img src="/img/Logo.png" alt="Nexy Logo" class="logo-img">
             <div class="input-container">
-                <input type="text" class="auth-input" id="login-input" placeholder="Email or Handle">
+                <input type="text" class="auth-input" id="login-input" placeholder="Email, Handle, or Username">
                 <div class="password-wrapper">
                     <input type="password" class="auth-input" id="password-input" placeholder="Password">
                     <button class="show-password-btn" id="show-password-login-btn">Show</button>
@@ -32,7 +32,10 @@
             <div id="chat-heads-container"></div>
             <div class="sidebar">
                 <div class="top-bar">
-                    <input type="text" id="search-input" class="top-bar-search" placeholder="Search by @handle">
+                    <div class="search-wrapper">
+                        <input type="text" id="search-input" class="top-bar-search" placeholder="Search by @handle">
+                        <div id="search-results"></div>
+                    </div>
                     <button class="top-bar-btn" id="chats-btn">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                         <span>Chats</span>
@@ -55,8 +58,6 @@
                 </div>
                     <div class="chat-history-list"></div>
                 </div>
-
-                <div id="search-results"></div>
             </div>
             <div class="chat-area">
                 <div class="chat-window" id="chat-window">
@@ -130,6 +131,5 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script type="module" src="/js/app.js" defer></script>
-    <script type="module" src="/js/dummy_accounts.js" defer></script>
 </body>
 </html>

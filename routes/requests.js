@@ -1,27 +1,15 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 
-// A helper function to get the userId from the token
-const getUserIdFromToken = (req) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
-        const token = authHeader.split(' ')[1];
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            return decoded.userId;
-        } catch (err) {
-            return null;
-        }
-    }
-    return null;
-};
-
-module.exports = (dbPool) => {
+module.exports = (dbPool, io, onlineUsers) => {
   const router = express.Router();
+
+  // Apply auth middleware to all routes in this file
+  router.use(auth);
 
   // POST /api/requests - Send a chat request
   router.post('/requests', async (req, res) => {
-    const senderId = getUserIdFromToken(req);
+    const senderId = req.user.userId;
     const { receiverId } = req.body;
 
     if (!senderId) {
@@ -51,7 +39,7 @@ module.exports = (dbPool) => {
 
   // GET /api/requests - Get pending requests for the logged-in user
   router.get('/requests', async (req, res) => {
-    const userId = getUserIdFromToken(req);
+    const userId = req.user.userId;
     if (!userId) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -73,7 +61,7 @@ module.exports = (dbPool) => {
 
   // PUT /api/requests/:id - Accept or decline a request
   router.put('/requests/:id', async (req, res) => {
-    const userId = getUserIdFromToken(req);
+    const userId = req.user.userId;
     const { id } = req.params;
     const { status } = req.body; // 'accepted' or 'declined'
 
@@ -101,19 +89,29 @@ module.exports = (dbPool) => {
         // 2. Update the request status
         await connection.execute('UPDATE ChatRequests SET status = ? WHERE id = ?', [status, id]);
 
+        let chatId = null;
+
         // 3. If accepted, create a new chat
         if (status === 'accepted') {
             const [chatResult] = await connection.execute('INSERT INTO Chats (isGroupChat) VALUES (?)', [false]);
-            const chatId = chatResult.insertId;
+            chatId = chatResult.insertId;
 
             await connection.execute(
                 'INSERT INTO ChatParticipants (chatId, userId) VALUES (?, ?), (?, ?)',
                 [chatId, request.senderId, chatId, request.receiverId]
             );
+
+            // Notify the sender if they are online
+            if (io && onlineUsers) {
+                const senderSocketId = onlineUsers[request.senderId];
+                if (senderSocketId) {
+                    io.to(senderSocketId).emit('chatCreated', { chatId });
+                }
+            }
         }
 
         await connection.commit();
-        res.json({ message: `Request ${status}.` });
+        res.json({ message: `Request ${status}.`, chatId: chatId });
 
     } catch (error) {
         if (connection) await connection.rollback();

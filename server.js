@@ -29,6 +29,12 @@ const dbPool = mysql.createPool({
   queueLimit: 0
 });
 
+if (!process.env.JWT_SECRET) {
+    console.warn('[WARNING] JWT_SECRET is not defined! Auth will fail.');
+} else {
+    console.log('[INFO] JWT_SECRET loaded successfully.');
+}
+
 const onlineUsers = {}; // Object to track online users
 
 module.exports = {
@@ -47,21 +53,40 @@ const userRoute = require('./routes/user');
 app.use('/api', authRoutes(dbPool));
 app.use('/api', userRoutes(dbPool));
 app.use('/api', uploadRoutes(dbPool, io));
-app.use('/api', requestRoutes(dbPool));
+app.use('/api', requestRoutes(dbPool, io, onlineUsers));
 app.use('/api', chatRoutes(dbPool));
 app.use('/api/user', userRoute(dbPool));
 
-// --- Socket.IO Connection Handling ---
+// ---Real time chat--- :)
 io.on('connection', (socket) => {
   console.log('a user connected:', socket.id);
 
-  socket.on('setOnline', (userId) => {
+  socket.on('setOnline', async (userId) => {
     onlineUsers[userId] = socket.id;
     io.emit('onlineStatusUpdate', onlineUsers);
+
+    // Automatically join all chat rooms this user is part of
+    try {
+        const [chats] = await dbPool.execute(
+            'SELECT chatId FROM ChatParticipants WHERE userId = ?',
+            [userId]
+        );
+        chats.forEach(chat => {
+            socket.join(chat.chatId);
+        });
+    } catch (error) {
+        console.error('Error joining chat rooms on connect:', error);
+    }
+  });
+
+  // New event for real-time chat creation notification
+  socket.on('joinNewChat', (chatId) => {
+      socket.join(chatId);
   });
 
   socket.on('sendMessage', async (data) => {
     const { chatId, senderId, content } = data;
+    console.log(`[DEBUG] sendMessage called: chatId=${chatId}, senderId=${senderId}, content="${content}"`);
     try {
       const [result] = await dbPool.execute(
         'INSERT INTO Messages (chatId, senderId, content) VALUES (?, ?, ?)',
@@ -73,14 +98,26 @@ io.on('connection', (socket) => {
         [content, chatId]
       );
 
+      // Fetch sender details
+      const [userRows] = await dbPool.execute('SELECT username FROM Users WHERE userId = ?', [senderId]);
+      const sender = userRows[0];
+      
+      if (!sender) {
+          console.error(`[ERROR] Sender not found for userId: ${senderId}`);
+      } else {
+          console.log(`[DEBUG] Sender found: ${sender.username}`);
+      }
+
       const newMessage = { 
           messageId: result.insertId, 
           chatId, 
           senderId, 
           content, 
-          createdAt: new Date().toISOString() 
+          createdAt: new Date().toISOString(),
+          sender: sender
       };
       io.to(chatId).emit('newMessage', newMessage);
+      console.log(`[DEBUG] Message emitted to room ${chatId}`);
     } catch (error) {
       console.error('Error sending message:', error);
     }

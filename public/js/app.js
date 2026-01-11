@@ -1,5 +1,5 @@
 import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
-const socket = io('http://localhost:3000');
+const socket = io(`http://${window.location.hostname}:3000`);
 let currentUser = null;
 let currentChatId = null;
 let selectedMessageId = null;
@@ -50,6 +50,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const showPasswordSignupBtn = document.getElementById('show-password-signup-btn');
     const loginError = document.getElementById('login-error');
     const signupError = document.getElementById('signup-error');
+    function showNotification(message) {
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.textContent = message;
+        notificationContainer.appendChild(notification);
+        
+        anime({
+            targets: notification,
+            translateY: [-20, 0],
+            opacity: [0, 1],
+            duration: 300,
+            easing: 'easeOutQuad'
+        });
+
+        setTimeout(() => {
+            anime({
+                targets: notification,
+                translateY: -20,
+                opacity: 0,
+                duration: 300,
+                easing: 'easeInQuad',
+                complete: () => notification.remove()
+            });
+        }, 3000);
+    }
+
     function setupEventListeners() {
         loginBtn.addEventListener('click', () => handleLogin());
         passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleLogin(); });
@@ -65,7 +91,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('chat-history').classList.remove('visible');
     document.querySelector('.chat-area').classList.remove('history-visible');
 });
-        requestsBtn.addEventListener('click', () => requestsOverlay.classList.add('visible'));
+        requestsBtn.addEventListener('click', () => {
+            requestsOverlay.classList.add('visible');
+            loadFriendRequests();
+        });
         closeRequestsBtn.addEventListener('click', () => requestsOverlay.classList.remove('visible'));
         userProfile.addEventListener('click', showSelfProfile);
         closeProfileBtn.addEventListener('click', hideProfile);
@@ -100,6 +129,85 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    searchInput.addEventListener('focus', () => {
+        if (searchInput.value.trim()) {
+            searchInput.dispatchEvent(new Event('input'));
+        }
+    });
+
+    searchInput.addEventListener('input', async (e) => {
+        const searchTerm = e.target.value.trim();
+        if (!searchTerm) {
+            searchResults.innerHTML = '';
+            return;
+        }
+        try {
+            const response = await fetch(`/api/users/search?handle=${searchTerm}`);
+            const users = await response.json();
+            searchResults.innerHTML = '';
+            users.forEach(user => {
+                if (user.userId === currentUser.userId) return;
+                const resultItem = document.createElement('div');
+                resultItem.className = 'search-result-item';
+                
+                let handleDisplay = user.handle || '';
+                if (handleDisplay && !handleDisplay.startsWith('@')) {
+                    handleDisplay = '@' + handleDisplay;
+                }
+
+                resultItem.innerHTML = `
+                    <img src="${user.profilePictureUrl || 'img/default-avatar.png'}" alt="Profile">
+                    <div>
+                        <h4>${user.username}</h4>
+                        <span>${handleDisplay}</span>
+                    </div>
+                    <button class="add-friend-btn" data-user-id="${user.userId}">Add</button>
+                `;
+                resultItem.querySelector('.add-friend-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sendFriendRequest(user.userId);
+                });
+                searchResults.appendChild(resultItem);
+            });
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    });
+
+    async function sendFriendRequest(userId) {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('You must be logged in to send a friend request.');
+            return;
+        }
+        try {
+            const response = await fetch('/api/requests', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ receiverId: userId })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert('Friend request sent!');
+            } else {
+                alert(data.message || 'Failed to send friend request.');
+            }
+        } catch (error) {
+            console.error('Error sending friend request:', error);
+            alert('An error occurred while sending the request.');
+        }
+    }
+
+    document.addEventListener('click', (e) => {
+        if (searchResults && searchInput && !searchResults.contains(e.target) && !searchInput.contains(e.target)) {
+            searchResults.innerHTML = '';
+        }
+    });
+
     function hideProfile() {
             profileOverlay.classList.remove('visible');
         }
@@ -214,6 +322,79 @@ document.addEventListener('DOMContentLoaded', () => {
             profileOverlay.classList.add('visible');
         }
     }
+    async function loadFriendRequests() {
+        const requestsList = document.getElementById('requests-list');
+        requestsList.innerHTML = '<p>Loading...</p>';
+        const token = localStorage.getItem('token');
+
+        try {
+            const response = await fetch('/api/requests', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const requests = await response.json();
+
+            requestsList.innerHTML = '';
+            if (requests.length === 0) {
+                requestsList.innerHTML = '<p>No pending requests.</p>';
+                return;
+            }
+
+            requests.forEach(request => {
+                const requestEl = document.createElement('div');
+                requestEl.className = 'request-item';
+                requestEl.innerHTML = `
+                    <div class="request-info">
+                        <img src="${request.profilePictureUrl || 'img/default-avatar.png'}" alt="Profile">
+                        <span>${request.username}</span>
+                    </div>
+                    <div class="request-actions">
+                        <button class="accept-btn">Accept</button>
+                        <button class="decline-btn">Decline</button>
+                    </div>
+                `;
+
+                requestEl.querySelector('.accept-btn').addEventListener('click', () => acceptFriendRequest(request.id, true));
+                requestEl.querySelector('.decline-btn').addEventListener('click', () => acceptFriendRequest(request.id, false));
+                requestsList.appendChild(requestEl);
+            });
+        } catch (error) {
+            console.error('Error loading requests:', error);
+            requestsList.innerHTML = '<p>Error loading requests.</p>';
+        }
+    }
+
+    async function acceptFriendRequest(requestId, accepted) {
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`/api/requests/${requestId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: accepted ? 'accepted' : 'declined' })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Refresh requests list
+                loadFriendRequests();
+                // Refresh chat history if accepted
+                if (accepted) {
+                    loadChatHistory();
+                    if (data.chatId) {
+                        socket.emit('joinNewChat', data.chatId);
+                    }
+                }
+            } else {
+                alert('Failed to process request.');
+            }
+        } catch (error) {
+            console.error('Error processing request:', error);
+        }
+    }
+
     function hideProfile() {
         profileOverlay.classList.remove('visible');
     }
@@ -318,6 +499,12 @@ document.addEventListener('DOMContentLoaded', () => {
             chatHead.appendChild(badge);
         }
     });
+    
+    socket.on('chatCreated', (data) => {
+        loadChatHistory();
+        socket.emit('joinNewChat', data.chatId);
+    });
+
     socket.on('messageUpdated', (data) => {
         const messageEl = document.querySelector(`[data-message-id="${data.messageId}"]`);
         if (messageEl) {

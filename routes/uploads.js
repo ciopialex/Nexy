@@ -1,9 +1,13 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const auth = require('../middleware/auth');
 
 module.exports = (dbPool, io) => {
   const router = express.Router();
+
+  // Apply auth middleware
+  router.use(auth);
 
   // --- Multer Storage Configuration ---
   const storage = multer.diskStorage({
@@ -19,7 +23,8 @@ module.exports = (dbPool, io) => {
 
   // POST /api/upload
   router.post('/upload', upload.single('image'), async (req, res) => {
-      const { type, userId, chatId } = req.body; // type can be 'profile' or 'chat'
+      const { type, chatId } = req.body; // type can be 'profile' or 'chat'
+      const userId = req.user.userId;
       const imageUrl = `/uploads/${req.file.filename}`;
 
       if (!type || !req.file) {
@@ -28,12 +33,12 @@ module.exports = (dbPool, io) => {
 
       try {
           if (type === 'profile') {
-              if (!userId) return res.status(400).json({ message: 'User ID is required for profile picture updates.' });
+              // Removed manual userId check, relying on token
               await dbPool.execute('UPDATE Users SET profilePictureUrl = ? WHERE userId = ?', [imageUrl, userId]);
               res.json({ message: 'Profile picture updated successfully.', imageUrl });
 
           } else if (type === 'chat') {
-              if (!chatId || !userId) return res.status(400).json({ message: 'Chat ID and Sender ID are required for chat images.' });
+              if (!chatId) return res.status(400).json({ message: 'Chat ID is required for chat images.' });
               const [result] = await dbPool.execute(
                   'INSERT INTO Messages (chatId, senderId, imageUrl) VALUES (?, ?, ?)',
                   [chatId, userId, imageUrl]

@@ -9,17 +9,17 @@ module.exports = (dbPool) => {
 
   // POST /api/register
   router.post('/register', async (req, res) => {
-    const { username, email, password } = req.body;
+    const { username, email, password, handle } = req.body;
 
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: 'Username, email, and password are required.' });
+    if (!username || !email || !password || !handle) {
+      return res.status(400).json({ message: 'Username, email, handle, and password are required.' });
     }
 
     try {
       const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
       const [result] = await dbPool.execute(
-        'INSERT INTO Users (username, email, passwordHash) VALUES (?, ?, ?)',
-        [username, email, hashedPassword]
+        'INSERT INTO Users (username, email, passwordHash, handle) VALUES (?, ?, ?, ?)',
+        [username, email, hashedPassword, handle]
       );
 
       const userId = result.insertId;
@@ -46,8 +46,11 @@ module.exports = (dbPool) => {
       return res.status(400).json({ message: 'Email/Handle and password are required.' });
     }
 
+    // Remove '@' if the user included it in their handle
+    const cleanIdentifier = loginIdentifier.startsWith('@') ? loginIdentifier.slice(1) : loginIdentifier;
+
     try {
-      const [rows] = await dbPool.execute('SELECT * FROM Users WHERE email = ? OR handle = ?', [loginIdentifier, loginIdentifier]);
+      const [rows] = await dbPool.execute('SELECT * FROM Users WHERE email = ? OR handle = ? OR username = ?', [cleanIdentifier, cleanIdentifier, cleanIdentifier]);
       const user = rows[0];
       console.log('User from DB:', user);
 

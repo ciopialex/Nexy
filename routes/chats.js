@@ -1,28 +1,15 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
-
-// A helper function to get the userId from the token
-const getUserIdFromToken = (req) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
-        const token = authHeader.split(' ')[1];
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            return decoded.userId;
-        } catch (err) {
-            return null;
-        }
-    }
-    return null;
-};
+const auth = require('../middleware/auth');
 
 module.exports = (dbPool) => {
   const router = express.Router();
+  
+  // Apply auth middleware
+  router.use(auth);
 
   // GET /api/chats - Get all chats for the current user
   router.get('/chats', async (req, res) => {
-    const userId = getUserIdFromToken(req);
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    const userId = req.user.userId;
 
     try {
       const [rows] = await dbPool.execute(
@@ -44,9 +31,8 @@ module.exports = (dbPool) => {
 
   // GET /api/chats/:chatId/messages - Get messages for a specific chat
   router.get('/chats/:chatId/messages', async (req, res) => {
-    const userId = getUserIdFromToken(req);
+    const userId = req.user.userId;
     const { chatId } = req.params;
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     try {
       // First, verify the user is a participant of the chat
