@@ -1,8 +1,10 @@
+const jwt = require('jsonwebtoken');
+
 module.exports = (req, res, next) => {
     const JWT_SECRET = process.env.JWT_SECRET;
     const authHeader = req.header('Authorization');
     const token = authHeader?.replace('Bearer ', '');
-    
+
     if (!token) {
         return res.status(401).json({ message: 'No token, authorization denied' });
     }

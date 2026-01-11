@@ -13,7 +13,13 @@ function generateDefaultPfp(userId) {
     `;
 
     const fileName = `default-pfp-${userId}.svg`;
-    const filePath = path.join(__dirname, '..', 'public', 'uploads', fileName);
+    const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+    const filePath = path.join(uploadsDir, fileName);
+
+    // Ensure uploads directory exists
+    if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+    }
 
     fs.writeFileSync(filePath, svg);
 
