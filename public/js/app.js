@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupButtons() {
     // Login
     $('login-btn').onclick = login;
-    $('password-input').onkeydown = e => e.key === 'Enter' && login();
+    $('password-input').onkeydown = e => { if (e.key === 'Enter') login(); };
 
     // Signup
     $('show-signup-btn').onclick = () => $('signup-overlay').classList.add('visible');
@@ -51,7 +51,7 @@ function setupButtons() {
     // Chat window
     $('close-chat-btn').onclick = closeChat;
     $('send-btn').onclick = sendMessage;
-    $('message-input').onkeydown = e => e.key === 'Enter' && sendMessage();
+    $('message-input').onkeydown = e => { if (e.key === 'Enter') sendMessage(); };
 
     // Image upload
     $('upload-btn').onclick = () => $('image-upload').click();
@@ -264,13 +264,106 @@ window.openChat = async (chat) => {
     const messages = await res.json();
 
     $q('.chat-messages').innerHTML = messages.map(m => `
-        <div class="message ${m.senderId === currentUser.userId ? 'sent' : 'received'}" data-message-id="${m.messageId}">
+        <div class="message ${m.senderId === currentUser.userId ? 'sent' : 'received'}" data-message-id="${m.messageId}" oncontextmenu="openContextMenu(event, ${m.messageId}, ${m.senderId === currentUser.userId})">
             <div class="message-bubble">${m.imageUrl ? `<img src="${m.imageUrl}" class="message-image">` : m.content}</div>
         </div>
     `).join('');
 
     $q('.chat-messages').scrollTop = $q('.chat-messages').scrollHeight;
 };
+
+// ===== CONTEXT MENU =====
+let activeEditMsgId = null;
+let closeMenuHandler = null; // Track listener to remove it reliably
+
+window.openContextMenu = (e, msgId, isMine) => {
+    if (!isMine) return;
+    e.preventDefault();
+
+    const menu = $('message-context-menu');
+    menu.style.top = `${e.clientY}px`;
+    menu.style.left = `${e.clientX}px`;
+    menu.classList.add('visible');
+
+    activeEditMsgId = msgId;
+
+    // Cleanup previous listener if it exists
+    if (closeMenuHandler) {
+        document.removeEventListener('click', closeMenuHandler);
+    }
+
+    const closeAndCleanup = () => {
+        menu.classList.remove('visible');
+        if (closeMenuHandler) {
+            document.removeEventListener('click', closeMenuHandler);
+            closeMenuHandler = null;
+        }
+    };
+
+    $('edit-message-btn').onclick = () => {
+        closeAndCleanup();
+        startInlineEdit(msgId);
+    };
+
+    $('delete-message-btn').onclick = () => {
+        closeAndCleanup();
+        socket.emit('deleteMessage', { messageId: msgId, chatId: currentChatId, userId: currentUser.userId });
+    };
+
+    // Close menu on click elsewhere
+    closeMenuHandler = (evt) => {
+        if (!menu.contains(evt.target)) {
+            closeAndCleanup();
+        }
+    };
+
+    setTimeout(() => document.addEventListener('click', closeMenuHandler), 0);
+};
+
+// ===== INLINE EDIT =====
+function startInlineEdit(msgId) {
+    const msgDiv = $q(`[data-message-id="${msgId}"]`);
+    if (!msgDiv) return;
+
+    const bubble = msgDiv.querySelector('.message-bubble');
+    const currentText = bubble.textContent;
+
+    // Replace bubble content with an input field
+    bubble.innerHTML = `
+        <input type="text" class="inline-edit-input" value="${currentText.replace(/"/g, '&quot;')}" />
+        <div class="inline-edit-actions">
+            <button class="inline-save-btn">Save</button>
+            <button class="inline-cancel-btn">Cancel</button>
+        </div>
+    `;
+
+    const input = bubble.querySelector('.inline-edit-input');
+    input.focus();
+    input.select();
+
+    // Save handler
+    const saveEdit = () => {
+        const newContent = input.value.trim();
+        if (newContent && newContent !== currentText) {
+            socket.emit('editMessage', { messageId: msgId, chatId: currentChatId, userId: currentUser.userId, newContent });
+        } else {
+            // Revert if empty or unchanged
+            bubble.textContent = currentText;
+        }
+    };
+
+    bubble.querySelector('.inline-save-btn').onclick = saveEdit;
+    bubble.querySelector('.inline-cancel-btn').onclick = () => {
+        bubble.textContent = currentText;
+    };
+
+    // Enter to save, Escape to cancel
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') saveEdit();
+        if (e.key === 'Escape') bubble.textContent = currentText;
+    };
+}
+
 
 function closeChat() {
     $q('.chat-area').classList.remove('visible');
@@ -288,7 +381,10 @@ function sendMessage() {
 
 async function uploadImage() {
     const file = $('image-upload').files[0];
-    if (!file) return;
+    if (!file || !currentChatId) {
+        console.log('Upload cancelled: no file or no chat selected');
+        return;
+    }
 
     const formData = new FormData();
     formData.append('image', file);
@@ -296,20 +392,35 @@ async function uploadImage() {
     formData.append('type', 'chat');
 
     const token = localStorage.getItem('token');
-    await fetch('/api/upload', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
-    });
+    try {
+        const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData
+        });
+
+        if (!res.ok) {
+            const error = await res.json();
+            console.error('Upload failed:', error);
+            showNotification('Failed to upload image');
+        }
+    } catch (err) {
+        console.error('Upload error:', err);
+        showNotification('Failed to upload image');
+    }
+
+    // Clear input so same file can be uploaded again
+    $('image-upload').value = '';
 }
 
 // ===== SOCKET EVENTS (Real-time) =====
 function setupSocket() {
     socket.on('newMessage', msg => {
+        const isMine = msg.senderId === currentUser?.userId;
         // Add message to chat if it's the current one
         if (msg.chatId === currentChatId) {
             $q('.chat-messages').innerHTML += `
-                <div class="message ${msg.senderId === currentUser?.userId ? 'sent' : 'received'}">
+                <div class="message ${isMine ? 'sent' : 'received'}" data-message-id="${msg.messageId}" ${isMine ? `oncontextmenu="openContextMenu(event, ${msg.messageId}, true)"` : ''}>
                     <div class="message-bubble">${msg.imageUrl ? `<img src="${msg.imageUrl}" class="message-image">` : msg.content}</div>
                 </div>
             `;

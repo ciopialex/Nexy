@@ -23,49 +23,55 @@ module.exports = (dbPool, io) => {
 
   // POST /api/upload
   router.post('/upload', upload.single('image'), async (req, res) => {
-      const { type, chatId } = req.body; // type can be 'profile' or 'chat'
-      const userId = req.user.userId;
-      const imageUrl = `/uploads/${req.file.filename}`;
+    const { type, chatId } = req.body; // type can be 'profile' or 'chat'
+    const userId = req.user.userId;
+    const imageUrl = `/uploads/${req.file.filename}`;
 
-      if (!type || !req.file) {
-          return res.status(400).json({ message: 'Upload type and file are required.' });
+    if (!type || !req.file) {
+      return res.status(400).json({ message: 'Upload type and file are required.' });
+    }
+
+    try {
+      if (type === 'profile') {
+        // Removed manual userId check, relying on token
+        await dbPool.execute('UPDATE Users SET profilePictureUrl = ? WHERE userId = ?', [imageUrl, userId]);
+        res.json({ message: 'Profile picture updated successfully.', imageUrl });
+
+      } else if (type === 'chat') {
+        if (!chatId) return res.status(400).json({ message: 'Chat ID is required for chat images.' });
+
+        // Convert chatId to number for consistent room matching
+        const chatIdNum = parseInt(chatId, 10);
+
+        const [result] = await dbPool.execute(
+          'INSERT INTO Messages (chatId, senderId, imageUrl) VALUES (?, ?, ?)',
+          [chatIdNum, userId, imageUrl]
+        );
+        // Also update the chat's last message
+        await dbPool.execute(
+          'UPDATE Chats SET lastMessage = ? WHERE chatId = ?',
+          ['📷 Image', chatIdNum]
+        );
+
+        const newMessage = {
+          messageId: result.insertId,
+          chatId: chatIdNum,
+          senderId: userId,
+          imageUrl,
+          createdAt: new Date().toISOString()
+        };
+
+        // Broadcast to the chat room
+        io.to(String(chatIdNum)).emit('newMessage', newMessage);
+
+        res.status(201).json({ message: 'Image sent successfully', ...newMessage });
+      } else {
+        res.status(400).json({ message: 'Invalid upload type.' });
       }
-
-      try {
-          if (type === 'profile') {
-              // Removed manual userId check, relying on token
-              await dbPool.execute('UPDATE Users SET profilePictureUrl = ? WHERE userId = ?', [imageUrl, userId]);
-              res.json({ message: 'Profile picture updated successfully.', imageUrl });
-
-          } else if (type === 'chat') {
-              if (!chatId) return res.status(400).json({ message: 'Chat ID is required for chat images.' });
-              const [result] = await dbPool.execute(
-                  'INSERT INTO Messages (chatId, senderId, imageUrl) VALUES (?, ?, ?)',
-                  [chatId, userId, imageUrl]
-              );
-              // Also update the chat's last message
-              await dbPool.execute(
-                'UPDATE Chats SET lastMessage = ? WHERE chatId = ?',
-                ['📷 Image', chatId]
-              );
-
-              const newMessage = {
-                  messageId: result.insertId,
-                  chatId,
-                  senderId: userId,
-                  imageUrl,
-                  createdAt: new Date().toISOString()
-              };
-              io.to(chatId).emit('newMessage', newMessage);
-
-              res.status(201).json({ message: 'Image sent successfully', ...newMessage });
-          } else {
-              res.status(400).json({ message: 'Invalid upload type.' });
-          }
-      } catch (error) {
-          console.error('File upload error:', error);
-          res.status(500).json({ message: 'Internal server error' });
-      }
+    } catch (error) {
+      console.error('File upload error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
   });
 
   return router;

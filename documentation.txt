@@ -1,0 +1,298 @@
+================================================================================
+                               NEXY PROJECT DOCUMENTATION
+                                  Version 1.0.0
+                              Author: Nexy Development Team
+                              Date: January 2026
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1.  Executive Summary
+2.  System Architecture & Design Patterns
+3.  Technology Stack & Rationales
+4.  Database Schema & Data Modeling
+5.  Backend Implementation Details
+    5.1. Server Initialization
+    5.2. Middleware Pipeline
+    5.3. Dependency Injection
+6.  Authentication & Security Module
+    6.1. Hashing Algorithm (Bcrypt)
+    6.2. Stateless Authentication (JWT)
+7.  Real-Time Communication Module (Socket.IO)
+    7.1. Event-Driven Architecture
+    7.2. Room Architecture
+    7.3. Event Reference
+8.  REST API Reference Manual
+    8.1. Authentication Routes
+    8.2. User Management Routes
+    8.3. Chat Request System
+    8.4. Chat & Message Routes
+    8.5. File Upload System
+9.  Client-Side Integration Guide
+10. Environment & Deployment Configuration
+
+================================================================================
+1. EXECUTIVE SUMMARY
+================================================================================
+Nexy is a robust, real-time communication platform designed to bridge the gap between simple text messaging and modern, instant interaction. Unlike traditional "Request-Response" web applications where users must refresh to see updates, Nexy utilizes a persistent WebSocket connection to deliver sub-second latency for message delivery.
+
+The application allows users to register secure accounts, search for peers via unique handles, send friend requests, and engage in private (1-on-1) conversations. It supports rich media (image uploads), read receipts, and live "Online/Offline" status indicators.
+
+The backend is built on a scalable Node.js architecture, utilizing a relational MySQL database for data persistence and Redis-ready patterns for future scalability. This document serves as the technical source of truth for the system's inner workings.
+
+================================================================================
+2. SYSTEM ARCHITECTURE & DESIGN PATTERNS
+================================================================================
+Nexy follows a standard "Monolithic Client-Server" architecture with a clear separation of concerns between the presentation layer (Frontend) and the data layer (Backend).
+
+[ CLIENT LAYER ]  <--- HTTP / WebSockets --->  [ SERVER LAYER ]  <--- SQL --->  [ DATA LAYER ]
+   (Browser)                                   (Node.js API)                      (MySQL)
+  - HTML5/CSS3                                - Express Router                   - Users Table
+  - Vanilla JS                                - Socket.IO Hub                    - Chats Table
+  - Socket Client                             - Auth Controller                  - Messages Table
+
+2.1. DESIGN PATTERNS USED
+-------------------------
+A.  **Model-View-Controller (MVC) Adaptation**:
+    While not a strict MVC framework, the code is structured similarly:
+    -   **Model**: Defined by the SQL Schema and DB Queries.
+    -   **Controller**: The Route handlers (`routes/*.js`) managing business logic.
+    -   **View**: The static assets in `public/` and JSON responses.
+
+B.  **Dependency Injection**:
+    The database connection pool (`db`) and the Socket.IO instance (`io`) are instantiated once in `server.js` and "injected" into route modules. This prevents multiple database connections from being opened unnecessarily and makes the code testable.
+
+C.  **Event-Driven Architecture**:
+    The core messaging feature relies on an "Observer Pattern." Clients "subscribe" to chat rooms, and the server "publishes" events (messages) to those specific rooms.
+
+================================================================================
+3. TECHNOLOGY STACK & RATIONALES
+================================================================================
+
+3.1. RUNTIME: Node.js
+---------------------
+-   **Why:** Node.js uses a "Non-Blocking I/O" model. In a chat app, thousands of users might be idle (waiting for a message). Node.js can handle these thousands of idle connections with a single thread, whereas traditional multi-threaded servers (like Apache) might consume too much RAM creating a thread for each user.
+
+3.2. FRAMEWORK: Express.js
+--------------------------
+-   **Why:** It provides a minimalist layer for HTTP routing and Middleware. It simplifies complex tasks like parsing JSON bodies (`express.json()`) and handling CORS headers into single lines of code.
+
+3.3. DATABASE: MySQL (Relational)
+---------------------------------
+-   **Why not NoSQL?** Chat applications are inherently relational.
+    -   A **User** has many **Messages**.
+    -   A **Message** belongs to one **Chat**.
+    -   A **Chat** has many **Participants**.
+    SQL databases enforce these rules (Referential Integrity). If a Chat is deleted, MySQL can automatically delete all associated messages (Cascading Delete), ensuring no "orphan data" is left behind.
+
+3.4. REAL-TIME ENGINE: Socket.IO
+--------------------------------
+-   **Why:** While raw WebSockets are available in modern browsers, Socket.IO provides "Polyfills." If a user is on an ancient browser or a strict corporate firewall that blocks WebSockets, Socket.IO automatically falls back to "HTTP Long-Polling," ensuring the app works for everyone.
+
+================================================================================
+4. DATABASE SCHEMA & DATA MODELING
+================================================================================
+The database is normalized to the Third Normal Form (3NF) to reduce redundancy.
+
+4.1. TABLE: Users
+-----------------
+Holds the identity of every person on the platform.
+-   `userId` (INT, PK): Auto-incrementing unique ID.
+-   `username` (VARCHAR): Unique display name.
+-   `handle` (VARCHAR): Unique search ID (e.g., @coolguy).
+-   `email` (VARCHAR): Unique contact email.
+-   `passwordHash` (VARCHAR): The Bcrypt-hashed password.
+-   `profilePictureUrl` (VARCHAR): Path to their avatar image.
+-   `createdAt` (TIMESTAMP): Account creation date.
+
+4.2. TABLE: Chats
+-----------------
+Represents a "Room" or "Channel."
+-   `chatId` (INT, PK): Unique Room ID.
+-   `isGroupChat` (BOOLEAN): Flag to differentiate 1-on-1 vs Groups.
+-   `chatName` (VARCHAR): Optional name for groups.
+-   `lastMessage` (TEXT): A cache of the most recent message to display in the sidebar preview (Optimization).
+-   `lastUpdated` (TIMESTAMP): Used for sorting chats by recency.
+
+4.3. TABLE: ChatParticipants (Junction Table)
+---------------------------------------------
+Resolves the Many-to-Many relationship between Users and Chats.
+-   `chatId` (INT, FK -> Chats)
+-   `userId` (INT, FK -> Users)
+-   *Constraint:* A composite primary key (chatId + userId) prevents a user from being in the same chat twice.
+
+4.4. TABLE: Messages
+--------------------
+The core content.
+-   `messageId` (INT, PK): Unique ID.
+-   `chatId` (INT, FK -> Chats): The room this belongs to.
+-   `senderId` (INT, FK -> Users): The author.
+-   `content` (TEXT): The message body.
+-   `imageUrl` (VARCHAR): Optional link if the message is an image.
+-   `status` (ENUM): 'sent', 'delivered', 'seen'.
+
+4.5. TABLE: ChatRequests
+------------------------
+Manages the "Friend Request" system.
+-   `id` (INT, PK)
+-   `senderId` (INT, FK)
+-   `receiverId` (INT, FK)
+-   `status` (ENUM): 'pending', 'accepted', 'declined'.
+
+================================================================================
+5. BACKEND IMPLEMENTATION DETAILS
+================================================================================
+
+5.1. SERVER INITIALIZATION (server.js)
+--------------------------------------
+The entry point (`server.js`) performs three critical tasks:
+1.  **Environment Loading**: `dotenv` reads secret keys (DB passwords, JWT secrets).
+2.  **Server Wrapping**: It wraps the Express App in a raw Node `http.createServer()`. This is mandatory for Socket.IO to attach to the same port (3000) as the HTTP API.
+3.  **Route Mounting**: It imports the route files from `/routes` and mounts them under the `/api` prefix.
+
+5.2. MIDDLEWARE PIPELINE
+------------------------
+Every request flows through this sequence:
+1.  `cors()`: Adds headers to allow cross-origin requests.
+2.  `express.json()`: Parses incoming JSON payloads into `req.body`.
+3.  `express.static()`: Serves images from the `public/uploads` folder.
+4.  `auth.js`: (Applied to specific routes) Verifies the JWT token.
+
+5.3. DATABASE CONNECTION POOLING
+--------------------------------
+Instead of opening a new TCP connection for every database query (which takes ~100ms), we use `mysql.createPool()`.
+-   **Mechanism**: The server opens ~10 connections at startup.
+-   **Usage**: When a query is needed, it "borrows" a connection.
+-   **Release**: When done, the connection is returned to the pool, not closed.
+-   **Benefit**: Massive performance increase under load.
+
+================================================================================
+6. AUTHENTICATION & SECURITY MODULE
+================================================================================
+Security is paramount in a chat application.
+
+6.1. HASHING (Bcrypt)
+---------------------
+-   **Process**: When a user registers, we do NOT save `password`. We save `bcrypt.hash(password, 10)`.
+-   **Salt**: Bcrypt adds random data ("Salt") to the password before hashing. This ensures that two users with the same password ("password123") will have completely different hashes in the database.
+-   **Work Factor (10)**: The "10" represents the computational cost. It makes the hashing slow on purpose (e.g., 0.1s per hash) to make Brute Force attacks strictly impossible.
+
+6.2. STATELESS AUTHENTICATION (JWT)
+-----------------------------------
+-   **Process**: When a user logs in, we sign a JSON object `{ userId: 1 }` with a secret private key.
+-   **Result**: A long string (Token).
+-   **Validation**: When the user sends a request, `middleware/auth.js` decodes this token. If the signature matches our secret key, we know the user is legitimate.
+-   **Benefit**: The server does not need to store "Sessions" in RAM. This allows the server to restart without logging everyone out.
+
+================================================================================
+7. REAL-TIME COMMUNICATION MODULE (SOCKET.IO)
+================================================================================
+
+7.1. EVENT-DRIVEN ARCHITECTURE
+------------------------------
+The socket system works on "Events" rather than URLs.
+-   **Client Emits**: `socket.emit('sendMessage', data)`
+-   **Server Listens**: `socket.on('sendMessage', (data) => { ... })`
+
+7.2. ROOM ARCHITECTURE
+----------------------
+Socket.IO allows grouping sockets into "Rooms."
+-   **Privacy**: When User A joins Chat #5, we run `socket.join('5')`.
+-   **Broadcasting**: When a message is sent to Chat #5, the server runs `io.to('5').emit(...)`.
+-   **Security**: This ensures User C (who is not in Room 5) never receives the network packet containing the message.
+
+7.3. EVENT REFERENCE
+--------------------
+| Event Name           | Direction      | Description                                      |
+|----------------------|----------------|--------------------------------------------------|
+| `connection`         | Client->Server | Triggered when app opens.                        |
+| `setOnline`          | Client->Server | User announces "I am User ID 5".                 |
+| `joinChat`           | Client->Server | User asks to subscribe to a specific chat room.  |
+| `sendMessage`        | Client->Server | User sends a text payload.                       |
+| `newMessage`         | Server->Client | Server broadcasts the message to the room.       |
+| `onlineStatusUpdate` | Server->Client | Broadcasts list of currently connected User IDs. |
+| `typing`             | Client->Server | (Optional) Signals user is typing.               |
+
+================================================================================
+8. REST API REFERENCE MANUAL
+================================================================================
+Base URL: `http://localhost:3000/api`
+
+8.1. AUTHENTICATION ROUTES
+--------------------------
+*   **POST /auth/register**
+    *   Body: `{ username, email, handle, password }`
+    *   Action: Hashes password, creates DB entry, generates default avatar.
+*   **POST /auth/login**
+    *   Body: `{ loginIdentifier, password }`
+    *   Action: Verifies hash, returns `{ token, user }`.
+
+8.2. USER MANAGEMENT
+--------------------
+*   **GET /users/search?handle=query**
+    *   Action: Returns users matching the search string (fuzzy search).
+*   **GET /user**
+    *   Header: `Authorization: Bearer <token>`
+    *   Action: Returns own profile data.
+
+8.3. CHAT REQUEST SYSTEM
+------------------------
+*   **POST /requests**
+    *   Body: `{ receiverId }`
+    *   Action: Creates a 'pending' entry in `ChatRequests`.
+*   **GET /requests**
+    *   Action: Returns all requests where `receiverId` = Current User.
+*   **PUT /requests/:id**
+    *   Body: `{ status: 'accepted' | 'declined' }`
+    *   Action: Atomic Transaction. If accepted, it updates request status AND creates a new Chat + Participants in one go.
+
+8.4. CHAT & MESSAGE ROUTES
+--------------------------
+*   **GET /chats**
+    *   Action: Returns all conversations the user is part of, sorted by `lastUpdated`.
+*   **GET /chats/:chatId/messages**
+    *   Action: Returns message history. Includes security check (`SELECT * FROM ChatParticipants`) to ensure the requester is actually in that chat.
+
+8.5. FILE UPLOAD SYSTEM
+-----------------------
+*   **POST /upload**
+    *   Middleware: `multer.single('image')`
+    *   Body: `{ type: 'profile' | 'chat', chatId? }`
+    *   Action: Saves file to disk. If type is 'chat', it also inserts a message into the DB with `imageUrl` set.
+
+================================================================================
+9. CLIENT-SIDE INTEGRATION GUIDE
+================================================================================
+The Frontend (found in `public/js/app.js`) is responsible for two main loops:
+
+1.  **The API Loop**:
+    Using `fetch()`, the client calls the REST API to get initial data (Previous chats, User profile).
+    *Example:* `await fetch('/api/chats', { headers: { 'Authorization': token } })`
+
+2.  **The Socket Loop**:
+    Using `socket = io()`, the client listens for live updates.
+    *Example:* `socket.on('newMessage', (msg) => appendMessageToUI(msg))`
+
+**Critical Logic**:
+-   The Frontend must store the JWT token in `localStorage`.
+-   On page refresh, it must check for this token. If found, it auto-connects. If not, it redirects to `login.html`.
+
+================================================================================
+10. ENVIRONMENT & DEPLOYMENT CONFIGURATION
+================================================================================
+The application requires a `.env` file in the root directory.
+
+**Required Variables**:
+-   `DB_HOST`: Database IP (e.g., localhost)
+-   `DB_USER`: Database Username (e.g., root)
+-   `DB_PASSWORD`: Database Password
+-   `DB_NAME`: Database Name (e.g., nexy_db)
+-   `JWT_SECRET`: A long, random string used to sign tokens.
+-   `PORT`: (Optional) Port to run on (Default: 3000).
+
+**Deployment Notes**:
+-   Ensure the `public/uploads` folder has Write Permissions.
+-   For production, use a Process Manager like **PM2** to keep the server running (`pm2 start server.js`).
+-   When using Nginx/Apache as a reverse proxy, ensure "Sticky Sessions" are enabled for Socket.IO support.
+
+[END OF DOCUMENTATION]

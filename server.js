@@ -43,17 +43,28 @@ io.on('connection', socket => {
     onlineUsers[userId] = socket.id;
     io.emit('onlineStatusUpdate', onlineUsers);
 
-    // Auto-join all their existing chats
+    // Auto-join all their existing chats (convert chatId to string for room name)
     const [chats] = await db.execute('SELECT chatId FROM ChatParticipants WHERE userId = ?', [userId]);
-    chats.forEach(c => socket.join(c.chatId));
+    chats.forEach(c => {
+      socket.join(String(c.chatId));
+      console.log(`User ${userId} auto-joined room ${c.chatId}`);
+    });
   });
 
-  // Join a specific chat room
-  socket.on('joinChat', chatId => socket.join(chatId));
-  socket.on('joinNewChat', chatId => socket.join(chatId));
+  // Join a specific chat room (convert to string)
+  socket.on('joinChat', chatId => {
+    socket.join(String(chatId));
+    console.log(`Socket ${socket.id} joined chat ${chatId}`);
+  });
+  socket.on('joinNewChat', chatId => {
+    socket.join(String(chatId));
+    console.log(`Socket ${socket.id} joined NEW chat ${chatId}`);
+  });
 
   // Send a message
   socket.on('sendMessage', async ({ chatId, senderId, content }) => {
+    console.log(`Message from user ${senderId} to chat ${chatId}: ${content}`);
+
     // Save to database
     const [result] = await db.execute(
       'INSERT INTO Messages (chatId, senderId, content) VALUES (?, ?, ?)',
@@ -64,8 +75,10 @@ io.on('connection', socket => {
     // Get sender info
     const [users] = await db.execute('SELECT username FROM Users WHERE userId = ?', [senderId]);
 
-    // Broadcast to everyone in the chat
-    io.to(chatId).emit('newMessage', {
+    // Broadcast to everyone in the chat (use String for room name)
+    const roomName = String(chatId);
+    console.log(`Broadcasting to room ${roomName}`);
+    io.to(roomName).emit('newMessage', {
       messageId: result.insertId,
       chatId,
       senderId,
