@@ -95,7 +95,7 @@ io.on('connection', socket => {
     if (rows[0]?.senderId !== userId) return;
 
     await db.execute('UPDATE Messages SET content = ?, isEdited = TRUE WHERE messageId = ?', [newContent, messageId]);
-    io.to(chatId).emit('messageUpdated', { messageId, chatId, content: newContent, isEdited: true });
+    io.to(String(chatId)).emit('messageUpdated', { messageId, chatId, content: newContent, isEdited: true });
   });
 
   // Delete a message
@@ -104,7 +104,8 @@ io.on('connection', socket => {
     if (rows[0]?.senderId !== userId) return;
 
     await db.execute("UPDATE Messages SET content = 'This message was deleted.', imageUrl = NULL, isEdited = TRUE WHERE messageId = ?", [messageId]);
-    io.to(chatId).emit('messageUpdated', { messageId, chatId, content: 'This message was deleted.', isEdited: true });
+    // Broadcast update - clear content and setting deleted text
+    io.to(String(chatId)).emit('messageUpdated', { messageId, chatId, content: 'This message was deleted.', isEdited: true, imageUrl: null });
   });
 
   // Mark messages as read
